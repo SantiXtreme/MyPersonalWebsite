@@ -1,189 +1,186 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Santiago — Concepts</title>
-  <meta name="description" content="Two design concepts for Santiago's personal site." />
-  <meta name="theme-color" content="#08080b" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,400;0,600;1,500&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --ink: #08080b;
-      --panel: #101014;
-      --line: #232329;
-      --text: #f2f1ee;
-      --dim: #8a8a92;
-      --accent: #e8c873;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
-    body {
-      background: var(--ink);
-      color: var(--text);
-      font-family: 'Manrope', system-ui, sans-serif;
-      min-height: 100svh;
-      padding: clamp(1.5rem, 5vw, 4rem);
-    }
-    header {
-      max-width: 1100px;
-      margin: 0 auto clamp(2.5rem, 6vw, 4.5rem);
-    }
-    .eyebrow {
-      font-size: 0.75rem;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin: 0 0 1rem;
-    }
-    h1 {
-      font-family: 'Fraunces', Georgia, serif;
-      font-weight: 500;
-      font-size: clamp(2.4rem, 6vw, 4.2rem);
-      line-height: 1.05;
-      margin: 0 0 1rem;
-      max-width: 18ch;
-    }
-    header p {
-      color: var(--dim);
-      font-size: clamp(1rem, 1.6vw, 1.15rem);
-      max-width: 62ch;
-      line-height: 1.6;
-    }
-    .grid {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-      gap: 1.5px;
-      background: var(--line);
-      border: 1px solid var(--line);
-    }
-    a.card {
-      position: relative;
-      background: var(--panel);
-      padding: clamp(2rem, 4vw, 3.2rem);
-      text-decoration: none;
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      min-height: 320px;
-      overflow: hidden;
-      transition: background 0.3s ease;
-    }
-    a.card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--tint, transparent);
-      opacity: 0;
-      transition: opacity 0.4s ease;
-      pointer-events: none;
-    }
-    a.card:hover::before,
-    a.card:focus-visible::before { opacity: 0.14; }
-    a.card:hover, a.card:focus-visible { background: #16161b; }
-    .num {
-      font-family: 'Fraunces', serif;
-      font-size: 0.85rem;
-      color: var(--dim);
-      letter-spacing: 0.1em;
-    }
-    .card h2 {
-      font-family: 'Fraunces', Georgia, serif;
-      font-weight: 500;
-      font-size: 2.1rem;
-      margin: 0;
-    }
-    .card .dek {
-      font-style: italic;
-      color: var(--accent);
-      font-family: 'Fraunces', serif;
-      font-size: 1rem;
-      margin: -0.6rem 0 0;
-    }
-    .card p {
-      color: var(--dim);
-      font-size: 0.98rem;
-      line-height: 1.6;
-      margin: 0;
-      flex: 1;
-    }
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-top: auto;
-    }
-    .tags span {
-      font-size: 0.68rem;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--dim);
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 0.2rem 0.6rem;
-    }
-    .arrow {
-      align-self: flex-end;
-      font-size: 1.6rem;
-      color: var(--accent);
-      transform: translate(0, 0);
-      transition: transform 0.25s ease;
-    }
-    a.card:hover .arrow { transform: translate(4px, -4px); }
-    footer {
-      max-width: 1100px;
-      margin: clamp(2.5rem, 6vw, 4rem) auto 0;
-      color: var(--dim);
-      font-size: 0.85rem;
-      line-height: 1.7;
-    }
-    footer a { color: var(--dim); }
-  </style>
-</head>
-<body>
-  <header>
-    <p class="eyebrow">Santiago — Concept Review, Round 2</p>
-    <h1>Two directions, built from what you liked.</h1>
-    <p>
-      Round 1's strongest bits — the cursor-reactive glow and cinematic intro
-      from Fog Gate, the smoothness and elegance of Atelier Noir — feed
-      straight into these two. Both now open on a real 3D grand piano you
-      can hear play one of three recital pieces. One is built entirely
-      around scroll spectacle and motion; the other is quieter and more
-      refined — walking into a theatre for a recital.
-    </p>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Santiago — Off the hours</title>
+    <meta name="description" content="Santiago — machine learning, math and physics, volleyball, piano, and reading, in motion." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Inter:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Cinematic intro curtain — the word is built from person.name in main.js -->
+    <div id="intro" aria-hidden="true">
+      <div class="intro-sigil" aria-hidden="true">
+        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" /><line x1="50" y1="4" x2="50" y2="96" /></svg>
+      </div>
+      <div class="intro-line"></div>
+      <div class="intro-word" id="intro-word"></div>
+    </div>
 
-  <div class="grid">
-    <a class="card" href="./concepts/motion/" style="--tint:#ff5da2">
-      <span class="num">01 — Motion</span>
-      <h2>Motion</h2>
-      <p class="dek">Scroll spectacle, drastic scene changes, a minigame — motion and visual quality are the whole point.</p>
-      <p>Fixes round 1's rough scroll and empty stretches: buttery Lenis-driven pacing, dramatic per-section transformations, and at least one polished interactive minigame, without sacrificing animation quality anywhere.</p>
-      <div class="tags"><span>Scroll-driven</span><span>3D Piano</span><span>Minigame</span></div>
-      <span class="arrow">↗</span>
-    </a>
-    <a class="card" href="./concepts/recital/" style="--tint:#c9a86a">
-      <span class="num">02 — Recital</span>
-      <h2>Recital</h2>
-      <p class="dek">Entering a theatre, taking a seat, watching a piano recital — refined, elegant, ML-aware.</p>
-      <p>Continues what worked best in Atelier Noir: restraint, smoothness, quality typography. The 3D grand piano sits centre-stage under a spotlight; ML projects are framed as the evening's programme.</p>
-      <div class="tags"><span>Theatre</span><span>3D Piano</span><span>Elegant</span></div>
-      <span class="arrow">↗</span>
-    </a>
-  </div>
+    <!-- Persistent atmospheric field: one Three.js particle system, palette
+         morphs per section. See scene3d.js. -->
+    <canvas id="field"></canvas>
+    <div id="grain" aria-hidden="true"></div>
 
-  <footer>
-    Round 1 (five concepts, including Atelier Noir) is preserved at
-    <a href="./archive/concepts-round-1/">/archive/concepts-round-1/</a>,
-    with your feedback on each recorded in that folder's README. The
-    original Elden Ring "Site of Grace" build is at
-    <a href="./archive/elden-grace-v1/">/archive/elden-grace-v1/</a>.
-  </footer>
-</body>
+    <!-- Fixed 3D piano stage — the Recital section -->
+    <div id="piano-stage" aria-hidden="true"><div id="piano-mount"></div></div>
+
+    <!-- Torchlight cursor reveal, used only over #machine-learning -->
+    <div id="torch" aria-hidden="true"></div>
+
+    <!-- Scroll progress rail -->
+    <nav id="rail" aria-label="Section navigation">
+      <ul id="rail-list"></ul>
+    </nav>
+
+    <main>
+      <!-- 00 · HERO -->
+      <section id="hero" class="scene" data-scene="hero" data-label="Intro">
+        <div class="hero-inner">
+          <div class="hero-text">
+            <p class="eyebrow reveal-intro">A personal site, in motion</p>
+            <h1 class="hero-title" id="hero-title">Santiago</h1>
+            <p class="hero-tagline reveal-intro" id="hero-tagline"></p>
+            <div class="hero-cue reveal-intro" aria-hidden="true">
+              <span>scroll</span>
+              <span class="hero-cue-track"><span class="hero-cue-dot"></span></span>
+            </div>
+          </div>
+          <div class="hero-photo-frame reveal-intro" aria-hidden="true" id="hero-photo-frame">
+            <div class="hero-photo-placeholder"><span>Photo</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 01 · ABOUT -->
+      <section id="about" class="scene" data-scene="about" data-label="About">
+        <div class="wrap" id="about-canvas-wrap">
+          <header class="section-head">
+            <span class="section-index">01</span>
+            <h2 class="section-title">About</h2>
+            <p class="section-sub" id="about-intro"></p>
+          </header>
+          <div class="key-area-grid" id="key-area-grid"></div>
+        </div>
+      </section>
+
+      <!-- 02 · MACHINE LEARNING -->
+      <section id="machine-learning" class="scene" data-scene="ml" data-label="Machine Learning">
+        <canvas id="ml-canvas" class="section-canvas-bg" aria-hidden="true"></canvas>
+        <div class="wrap">
+          <header class="section-head">
+            <span class="section-index">02</span>
+            <h2 class="section-title">Machine learning</h2>
+            <p class="section-sub">Where the neural net settles is where the projects start.</p>
+          </header>
+          <div class="project-grid" id="project-grid"></div>
+        </div>
+      </section>
+
+      <!-- 03 · MATH & PHYSICS -->
+      <section id="math-physics" class="scene" data-scene="mathphysics" data-label="Math &amp; Physics">
+        <canvas id="collision-canvas" class="section-canvas-bg" aria-hidden="true"></canvas>
+        <div class="wrap" id="mathphysics-eq-wrap">
+          <header class="section-head on-dark">
+            <span class="section-index">03</span>
+            <h2 class="section-title">Math &amp; physics</h2>
+            <p class="section-sub" id="mathphysics-intro">
+              Momentum conserved, energy conserved — the collision above is computed live, not scripted.
+            </p>
+          </header>
+        </div>
+      </section>
+
+      <!-- 04 · VOLLEYBALL -->
+      <section id="volleyball" class="scene" data-scene="volleyball" data-label="Volleyball">
+        <div class="volleyball-bg" id="volleyball-bg" aria-hidden="true"></div>
+        <div class="wrap on-dark">
+          <header class="section-head on-dark">
+            <span class="section-index">04</span>
+            <h2 class="section-title">Volleyball</h2>
+            <p class="section-sub" id="volleyball-intro"></p>
+          </header>
+          <div class="volleyball-panel">
+            <div class="stat-row">
+              <div class="stat"><span class="stat-num" id="stat-height"></span><span class="stat-lbl">Height</span></div>
+              <div class="stat"><span class="stat-num" id="stat-position"></span><span class="stat-lbl">Position</span></div>
+              <div class="stat"><span class="stat-num" id="stat-reach"></span><span class="stat-lbl">Vertical reach</span></div>
+            </div>
+            <div class="hero-photo-frame" aria-hidden="true" id="volleyball-photo-frame">
+              <div class="hero-photo-placeholder"><span>Photo</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 05 · RECITAL (piano) -->
+      <section id="recital" class="scene piano-act" data-scene="recital" data-label="Piano">
+        <div class="recital-inner">
+          <header class="section-head on-dark">
+            <span class="section-index">05</span>
+            <h2 class="section-title">The recital</h2>
+            <p class="section-sub" id="piano-intro"></p>
+          </header>
+          <div class="recital-panel" id="recital-panel">
+            <div class="song-list" id="song-list"></div>
+            <div class="recital-body">
+              <p class="now-playing" id="now-playing">Pick a piece to begin.</p>
+              <div class="media" id="media" aria-live="polite"></div>
+              <div class="transport" id="transport" hidden>
+                <button class="t-btn" id="play-btn" type="button">Play</button>
+                <button class="t-btn ghost" id="pause-btn" type="button">Pause</button>
+                <span class="t-status" id="t-status"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 06 · READING -->
+      <section id="reading" class="scene" data-scene="reading" data-label="Reading">
+        <div class="wrap">
+          <header class="section-head">
+            <span class="section-index">06</span>
+            <h2 class="section-title">Reading</h2>
+            <p class="section-sub">A shelf of favorites, still being filled in.</p>
+          </header>
+          <div class="book-shelf-mount" id="book-shelf-mount"></div>
+        </div>
+      </section>
+
+      <!-- 07 · HOBBIES -->
+      <section id="hobbies" class="scene" data-scene="hobbies" data-label="Off the hours">
+        <div class="hobbies-bg" id="hobbies-bg" aria-hidden="true"></div>
+        <div class="wrap">
+          <header class="section-head on-dark">
+            <span class="section-index">07</span>
+            <h2 class="section-title">Off the hours</h2>
+            <p class="section-sub on-dark">The things that keep the batteries charged.</p>
+          </header>
+          <div class="hobby-list" id="hobby-list"></div>
+        </div>
+      </section>
+
+      <!-- 08 · CONTACT -->
+      <section id="contact" class="scene" data-scene="contact" data-label="Contact">
+        <div class="contact-inner">
+          <span class="section-index center">08</span>
+          <h2 class="contact-title" id="contact-title">
+            <span class="ct-line" id="ct-line1">Let's make</span><br />
+            <em><span class="ct-line" id="ct-line2">something move.</span></em>
+          </h2>
+          <div class="contact-links" id="contact-links"></div>
+          <p class="signoff"><span id="signoff-name">Santiago</span> — built in motion, 2026</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
 </html>

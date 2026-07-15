@@ -210,7 +210,7 @@ function createReactiveAnalyser(audioEl, onNote, profile = DEFAULT_PROFILE) {
 // if a page ever needed two players, though in practice each mounts one).
 // ---------------------------------------------------------------------
 let ytApiPromise = null;
-function loadYouTubeAPI() {
+export function loadYouTubeAPI() {
   if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
   if (ytApiPromise) return ytApiPromise;
   ytApiPromise = new Promise((resolve) => {

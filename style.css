@@ -1,0 +1,1095 @@
+/* =========================================================================
+   Off the hours — style.css
+   A scroll spectacle built around one persistent WebGL atmospheric field
+   (scene3d.js) whose palette morphs per section — the hero/ending run a
+   darker-blue "night sky" mood, the recital keeps its warm gold/lacquer
+   tones (material-driven, not part of the retired Elden Ring motif), and
+   each of the five key-area heroes gets its own accent. Warm ivory serif
+   type in Fraunces (display) + Inter (UI), continuing what was liked since
+   round 1.
+   ========================================================================= */
+
+:root {
+  --bg-0: #0b0910;
+  --bg-1: #100d1b;
+  --ink: #f4efe6;
+  --ink-dim: #c7bfd2;
+  --muted: #8b83a0;
+  --line: rgba(244, 239, 230, 0.14);
+
+  --gold: #e7b878;
+  --gold-bright: #f3cf94;
+  --ash: #a8b0a8;
+  --sky: #a1d6ff;
+  --violet: #dca0ff;
+  --rose: #ff9e9e;
+
+  /* Hero/ending "darker blues" accent — deliberately distinct from --gold,
+     used only where the reactive letter-cloud lives (see reactive-cloud.js). */
+  --blue-deep: #17233f;
+  --blue-accent: #6fa3ff;
+  --blue-bright: #a7c8ff;
+
+  --maxw: 1180px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  line-height: 1.55;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+::selection {
+  background: var(--gold);
+  color: #17111b;
+}
+
+/* -------------------------------------------------------------------------
+   Persistent layers
+   ------------------------------------------------------------------------- */
+#field {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  display: block;
+}
+
+/* Torchlight reveal — active only over #projects (main.js toggles opacity
+   and moves --tx/--ty on pointermove). A single soft warm pool of light
+   that makes whatever's near the cursor read as gilded/lit. */
+#torch {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: soft-light;
+  background: radial-gradient(
+    420px 420px at var(--tx, 50%) var(--ty, 50%),
+    rgba(255, 224, 176, 0.9) 0%,
+    rgba(231, 184, 120, 0.35) 38%,
+    transparent 70%
+  );
+  transition: opacity 0.5s ease;
+  will-change: background;
+}
+
+#grain {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* -------------------------------------------------------------------------
+   Fixed 3D piano stage
+   ------------------------------------------------------------------------- */
+#piano-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+#piano-mount {
+  position: absolute;
+  inset: 0;
+}
+#piano-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 62%, transparent 40%, rgba(6, 5, 10, 0.72) 100%);
+}
+
+/* -------------------------------------------------------------------------
+   Progress rail
+   ------------------------------------------------------------------------- */
+#rail {
+  position: fixed;
+  top: 50%;
+  right: clamp(14px, 2.4vw, 34px);
+  transform: translateY(-50%);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+#rail-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+#rail-list li {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+#rail-list li .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(244, 239, 230, 0.28);
+  transition: transform 0.4s var(--ease-out), background 0.4s ease;
+}
+#rail-list li .rlabel {
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 0.35s ease, transform 0.35s var(--ease-out), color 0.35s ease;
+}
+#rail-list li:hover .rlabel,
+#rail-list li.active .rlabel {
+  opacity: 1;
+  transform: translateX(0);
+}
+#rail-list li.active .dot {
+  background: var(--gold);
+  transform: scale(1.7);
+  box-shadow: 0 0 14px rgba(231, 184, 120, 0.7);
+}
+#rail-list li.active {
+  color: var(--ink);
+}
+@media (max-width: 720px) {
+  #rail-list li .rlabel {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Intro curtain
+   ------------------------------------------------------------------------- */
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#intro .intro-sigil {
+  position: absolute;
+  width: min(50vw, 420px);
+  height: min(50vw, 420px);
+  opacity: 0;
+  transform: scale(0.82);
+  filter: drop-shadow(0 0 24px rgba(231, 184, 120, 0.55));
+}
+#intro .intro-sigil svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 0.6;
+}
+#intro .intro-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform: translate(-50%, -50%);
+}
+#intro .intro-word {
+  display: flex;
+  gap: clamp(6px, 1.4vw, 18px);
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(30px, 8vw, 92px);
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+#intro .intro-word span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.5em);
+}
+#intro.done {
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------
+   Layout scaffolding
+   ------------------------------------------------------------------------- */
+main {
+  position: relative;
+  z-index: 3;
+}
+.scene {
+  position: relative;
+  padding: clamp(90px, 12vh, 150px) clamp(20px, 5vw, 64px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.wrap {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+
+/* Per-scene atmospheric overlays layered above the field canvas. */
+.scene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#hero::before {
+  background:
+    radial-gradient(90% 70% at 50% 8%, rgba(111, 163, 255, 0.18), transparent 60%),
+    radial-gradient(120% 120% at 50% 50%, transparent 50%, rgba(6, 9, 20, 0.82) 100%);
+}
+#projects::before {
+  background:
+    linear-gradient(180deg, rgba(9, 7, 14, 0.6), rgba(14, 16, 14, 0.74)),
+    repeating-linear-gradient(90deg, rgba(168, 176, 168, 0.05) 0 1px, transparent 1px 88px),
+    repeating-linear-gradient(0deg, rgba(168, 176, 168, 0.05) 0 1px, transparent 1px 88px);
+}
+.piano-act::before {
+  background: radial-gradient(120% 100% at 50% 40%, transparent 30%, rgba(6, 5, 10, 0.55) 100%);
+}
+#hobbies::before {
+  background:
+    radial-gradient(80% 70% at 82% 16%, rgba(214, 156, 96, 0.2), transparent 58%),
+    radial-gradient(90% 80% at 12% 96%, rgba(180, 120, 74, 0.16), transparent 60%),
+    linear-gradient(180deg, rgba(20, 14, 10, 0.4), rgba(14, 9, 14, 0.6));
+}
+#contact::before {
+  background:
+    radial-gradient(70% 60% at 50% 30%, rgba(231, 184, 120, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(10, 8, 16, 0.5), rgba(7, 6, 12, 0.9));
+}
+
+/* -------------------------------------------------------------------------
+   Hero
+   ------------------------------------------------------------------------- */
+.hero-inner {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(24px, 5vw, 64px);
+}
+.hero-text {
+  flex: 1;
+  min-width: 0;
+}
+.hero-photo-frame {
+  flex: none;
+  width: clamp(120px, 16vw, 220px);
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  border: 1px solid rgba(111, 163, 255, 0.3);
+  background: linear-gradient(160deg, rgba(111, 163, 255, 0.08), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(6px);
+  box-shadow: 0 30px 70px rgba(4, 6, 16, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.hero-photo-placeholder {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+@media (max-width: 780px) {
+  .hero-inner {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+  .hero-photo-frame {
+    width: clamp(96px, 30vw, 140px);
+  }
+}
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--blue-accent);
+  margin-bottom: clamp(18px, 3vw, 30px);
+}
+.hero-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(76px, 20vw, 300px);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  margin: 0 0 clamp(20px, 3vw, 34px);
+}
+.hero-title .ch {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  transition: color 0.4s ease, text-shadow 0.4s ease;
+}
+.hero-title .ch.lit,
+.contact-title .ch.lit {
+  color: var(--blue-bright);
+  text-shadow: 0 0 24px rgba(111, 163, 255, 0.75);
+}
+.hero-title .word {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+.hero-tagline {
+  max-width: 34ch;
+  font-size: clamp(18px, 2.3vw, 26px);
+  font-weight: 300;
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+.hero-cue {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: clamp(40px, 7vh, 72px);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.hero-cue-track {
+  position: relative;
+  width: 46px;
+  height: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+.hero-cue-dot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: var(--blue-accent);
+  animation: cue 2.4s var(--ease-io) infinite;
+}
+@keyframes cue {
+  0% { transform: translateX(-12px); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateX(46px); opacity: 0; }
+}
+
+/* -------------------------------------------------------------------------
+   Section headers
+   ------------------------------------------------------------------------- */
+.section-head {
+  margin-bottom: clamp(38px, 6vw, 70px);
+  max-width: 40ch;
+}
+.section-head.compact {
+  margin-bottom: clamp(20px, 3vw, 34px);
+}
+.section-index {
+  display: inline-block;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  color: var(--ash);
+  margin-bottom: 18px;
+}
+.section-index.center {
+  display: block;
+  text-align: center;
+}
+.section-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(40px, 7vw, 88px);
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+.section-sub {
+  margin-top: 20px;
+  font-size: clamp(16px, 1.7vw, 20px);
+  font-weight: 300;
+  color: var(--ink-dim);
+  max-width: 46ch;
+}
+.on-dark .section-title,
+.on-dark .section-sub {
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.6);
+}
+
+.reveal {
+  opacity: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Projects — torchlit archive
+   ------------------------------------------------------------------------- */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(16px, 2vw, 26px);
+}
+@media (max-width: 860px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.project-card {
+  position: relative;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  will-change: transform, opacity;
+  transition: transform 0.5s var(--ease-out), border-color 0.5s ease;
+}
+.project-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(231, 184, 120, 0.4);
+}
+.card-num {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13px;
+  color: var(--ash);
+  letter-spacing: 0.2em;
+}
+.card-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(24px, 2.6vw, 32px);
+  margin: 14px 0 16px;
+  line-height: 1.1;
+}
+.card-desc {
+  color: var(--ink-dim);
+  font-weight: 300;
+  font-size: 15.5px;
+  flex: 1;
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+.card-tags span {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.card-arrow {
+  margin-top: 22px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-arrow span {
+  transition: transform 0.4s var(--ease-out);
+}
+.project-card:hover .card-arrow span {
+  transform: translateX(6px);
+}
+
+/* -------------------------------------------------------------------------
+   Recital
+   ------------------------------------------------------------------------- */
+.recital-inner {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(80px, 11vh, 130px) 0 clamp(40px, 7vh, 80px);
+  pointer-events: none;
+}
+.recital-inner > * {
+  pointer-events: auto;
+}
+.recital-panel {
+  align-self: flex-end;
+  width: min(440px, 100%);
+  padding: clamp(18px, 2vw, 26px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(12, 10, 20, 0.62);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.song-btn {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.3s ease, background 0.3s ease, transform 0.3s var(--ease-out);
+}
+.song-btn:hover {
+  border-color: rgba(231, 184, 120, 0.5);
+  transform: translateX(4px);
+}
+.song-btn.active {
+  border-color: var(--gold);
+  background: linear-gradient(120deg, rgba(231, 184, 120, 0.14), transparent);
+}
+.song-btn .s-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+}
+.song-btn .s-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.recital-body {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.now-playing {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+  min-height: 1.2em;
+}
+.media {
+  min-height: 0;
+}
+.media:not(:empty) {
+  margin-bottom: 14px;
+}
+.media audio {
+  width: 100%;
+  display: block;
+}
+.media iframe {
+  border: 0;
+  border-radius: 10px;
+  display: block;
+  width: 100%;
+}
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.t-btn {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: #17111b;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.3s var(--ease-out), opacity 0.3s ease;
+}
+.t-btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+.t-btn:hover {
+  transform: translateY(-2px);
+}
+.t-status {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+/* -------------------------------------------------------------------------
+   Hobbies
+   ------------------------------------------------------------------------- */
+.hobby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hobby-row {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  align-items: center;
+  gap: clamp(16px, 3vw, 40px);
+  padding: clamp(22px, 3.4vw, 40px) 0;
+  border-top: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+}
+.hobby-row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.hobby-row .h-index {
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--gold);
+  font-size: 15px;
+}
+.hobby-row .h-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(26px, 4vw, 46px);
+  line-height: 1.05;
+  transition: transform 0.5s var(--ease-out);
+}
+.hobby-row .h-desc {
+  color: var(--ink-dim);
+  font-weight: 300;
+  max-width: 32ch;
+  text-align: right;
+  font-size: 15px;
+}
+.hobby-row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(214, 156, 96, 0.1), transparent 60%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.6s var(--ease-out);
+}
+.hobby-row:hover::after {
+  transform: scaleX(1);
+}
+.hobby-row:hover .h-title {
+  transform: translateX(14px);
+}
+@media (max-width: 720px) {
+  .hobby-row {
+    grid-template-columns: 40px 1fr;
+  }
+  .hobby-row .h-desc {
+    grid-column: 1 / -1;
+    text-align: left;
+    margin-top: 6px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Contact — Site of Grace
+   ------------------------------------------------------------------------- */
+.contact-inner {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
+.contact-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(44px, 9vw, 118px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  margin: 22px 0 clamp(36px, 6vw, 60px);
+}
+.contact-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+.contact-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: clamp(14px, 2.5vw, 30px);
+  margin-bottom: clamp(40px, 8vw, 80px);
+}
+.contact-link {
+  position: relative;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(20px, 3vw, 30px);
+  color: var(--ink);
+  text-decoration: none;
+  padding-bottom: 6px;
+}
+.contact-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0.15);
+  transform-origin: left;
+  opacity: 0.4;
+  transition: transform 0.5s var(--ease-out), opacity 0.4s ease;
+}
+.contact-link:hover::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.signoff {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.contact-title .ch {
+  display: inline-block;
+  will-change: transform, opacity;
+  transition: color 0.4s ease, text-shadow 0.4s ease;
+}
+.contact-title .word {
+  display: inline-block;
+}
+
+/* -------------------------------------------------------------------------
+   Reactive cloud — hero + contact cursor reactivity (reactiveLetters.js)
+   ------------------------------------------------------------------------- */
+.reactive-cloud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 260px;
+  margin-left: -130px;
+  margin-top: -130px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  background: radial-gradient(
+    circle,
+    rgba(111, 163, 255, 0.32) 0%,
+    rgba(111, 163, 255, 0.12) 45%,
+    transparent 72%
+  );
+  filter: blur(6px);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+
+/* -------------------------------------------------------------------------
+   Section background canvases — full-bleed, behind the section's own
+   ::before mood layer and content, used by neuralNet.js / collision.js
+   ------------------------------------------------------------------------- */
+.section-canvas-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  display: block;
+}
+
+/* -------------------------------------------------------------------------
+   About — key-area overview
+   ------------------------------------------------------------------------- */
+#about-canvas-wrap {
+  position: relative;
+}
+#about::before {
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgba(111, 163, 255, 0.12), transparent 60%),
+    radial-gradient(120% 120% at 50% 50%, transparent 45%, rgba(8, 9, 16, 0.8) 100%);
+}
+.key-area-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: clamp(12px, 1.6vw, 20px);
+}
+@media (max-width: 980px) {
+  .key-area-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.key-area-card {
+  position: relative;
+  padding: clamp(20px, 2.4vw, 30px) clamp(16px, 2vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  transition: transform 0.5s var(--ease-out), border-color 0.5s ease;
+}
+.key-area-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(111, 163, 255, 0.45);
+}
+.key-area-card .ka-index {
+  display: block;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 12px;
+  color: var(--blue-accent);
+  letter-spacing: 0.18em;
+  margin-bottom: 14px;
+}
+.key-area-card .ka-label {
+  display: block;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(18px, 1.9vw, 22px);
+  line-height: 1.15;
+}
+
+/* -------------------------------------------------------------------------
+   Machine Learning
+   ------------------------------------------------------------------------- */
+#machine-learning::before {
+  background:
+    linear-gradient(180deg, rgba(6, 9, 18, 0.55), rgba(8, 10, 16, 0.72)),
+    repeating-linear-gradient(90deg, rgba(122, 178, 255, 0.05) 0 1px, transparent 1px 88px),
+    repeating-linear-gradient(0deg, rgba(122, 178, 255, 0.05) 0 1px, transparent 1px 88px);
+}
+
+/* -------------------------------------------------------------------------
+   Math & Physics — collision canvas + floating equations
+   ------------------------------------------------------------------------- */
+#math-physics::before {
+  background: radial-gradient(120% 100% at 50% 40%, transparent 25%, rgba(5, 7, 14, 0.62) 100%);
+}
+#mathphysics-eq-wrap {
+  position: relative;
+}
+.equation-layer {
+  position: absolute;
+  inset: clamp(-60px, -8vw, -120px);
+  z-index: -1;
+  pointer-events: none;
+  perspective: 900px;
+}
+.equation-glyph {
+  position: absolute;
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  color: var(--blue-bright);
+  white-space: nowrap;
+  will-change: transform;
+}
+
+/* -------------------------------------------------------------------------
+   Volleyball
+   ------------------------------------------------------------------------- */
+.volleyball-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -2;
+}
+.volleyball-bg .volleyball-clip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* overscan-crop + dim + soften: pushes any corner watermark on the user's
+     own clips out toward the edge and keeps the clip at ~80% clarity so it
+     reads as atmosphere behind the text, not a sharp foreground video. */
+  transform: scale(1.14) translate(1%, -1%);
+  filter: brightness(0.62) saturate(0.85) blur(1.1px);
+  transition: opacity 0.9s ease;
+}
+#volleyball::before {
+  background:
+    radial-gradient(90% 70% at 50% 100%, rgba(6, 8, 14, 0.55), transparent 60%),
+    linear-gradient(180deg, rgba(6, 8, 14, 0.35) 0%, rgba(6, 8, 14, 0.55) 55%, rgba(4, 5, 10, 0.86) 100%);
+}
+.volleyball-panel {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(20px, 4vw, 50px);
+  flex-wrap: wrap;
+}
+.stat-row {
+  display: flex;
+  gap: clamp(24px, 4vw, 56px);
+  flex-wrap: wrap;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+.stat-num {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1;
+  color: var(--ink);
+}
+.stat-lbl {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+/* -------------------------------------------------------------------------
+   Reading — falling book shelf
+   ------------------------------------------------------------------------- */
+#reading::before {
+  background:
+    radial-gradient(80% 70% at 18% 10%, rgba(214, 156, 96, 0.14), transparent 58%),
+    linear-gradient(180deg, rgba(14, 10, 8, 0.35), rgba(10, 8, 12, 0.6));
+}
+.book-shelf-mount {
+  position: relative;
+  min-height: 260px;
+}
+.book-shelf {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(10px, 1.6vw, 18px);
+  padding-top: 40px;
+  border-bottom: 3px solid rgba(214, 156, 96, 0.35);
+}
+.book-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: clamp(64px, 9vw, 96px);
+}
+.book-spine {
+  width: 100%;
+  height: clamp(160px, 20vw, 220px);
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(90deg, var(--spine-a), var(--spine-b));
+  box-shadow: inset -6px 0 10px rgba(0, 0, 0, 0.35), 0 14px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+.book-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 12px;
+  color: rgba(244, 239, 230, 0.85);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+.book-author {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+/* -------------------------------------------------------------------------
+   Hobbies background — the Elden Ring embed (see sections/eldenRingBg.js)
+   ------------------------------------------------------------------------- */
+.hobbies-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: -2;
+}
+.eldenring-bg-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  min-width: 178vh; /* 16:9 cover-crop regardless of viewport aspect ratio */
+  min-height: 56.25vw;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.eldenring-bg-frame iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Reduced motion
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-cue-dot {
+    animation: none;
+  }
+  #torch {
+    display: none;
+  }
+  .reactive-cloud {
+    display: none;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}

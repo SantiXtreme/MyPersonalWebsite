@@ -1,15 +1,17 @@
-// Shared, framework-agnostic 3D grand piano — used by every "round 2"
-// concept instead of the old flat clickable-key widget. Built from
-// procedural Three.js geometry (no external 3D model / no external
-// textures), styled as a generic glossy concert grand — deliberately not
-// reproducing any real manufacturer's wordmark/logo (that's trademarked
-// branding; the shape and lacquer-finish material quality do the work of
-// reading as "premium concert grand" without it). Modeled against the
-// user's own reference photo of an open Steinway lid (gold plate, strings,
-// warm soundboard) for the interior detail below.
+// Shared, framework-agnostic 3D grand piano used by the site's Recital
+// section instead of a flat clickable-key widget. Built from procedural
+// Three.js geometry (no external 3D model / no external textures), styled
+// as a generic glossy concert grand — deliberately not reproducing any real
+// manufacturer's wordmark/logo (that's trademarked branding; the shape and
+// lacquer-finish material quality do the work of reading as "premium
+// concert grand" without it). Modeled against design-reference/GRANDPIANO.jpeg
+// (a detailed studio render: glossy black lacquer, brass lid trim, tapered
+// legs on brass cup casters, twin pedals, a tufted-leather bench) for the
+// fidelity target — everything in that reference except the wordmark is
+// reproduced here (bench included, see below).
 //
 // Usage:
-//   import { createGrandPiano3D, CAMERA_PRESETS } from '../../shared/piano3d.js';
+//   import { createGrandPiano3D, CAMERA_PRESETS } from './shared/piano3d.js';
 //   const piano = createGrandPiano3D(containerEl, { cameraPreset: 'hero' });
 //   piano.pressKey(60, { velocity: 0.9, sustain: 1.4 });   // middle C, by MIDI number
 //   piano.dispose();                                        // on section teardown
@@ -85,6 +87,20 @@ function buildLidShape() {
   s.bezierCurveTo(1.52, -0.6, 1.5, -0.52, 1.5, -0.52);
   s.lineTo(0.08, -0.54);
   return s;
+}
+
+// Thin brass piping that traces the lid's outer curve (GRANDPIANO.jpeg
+// reference has a bright trim line running the length of the raised lid
+// edge). Sampling the same buildLidShape() curve keeps it perfectly matched
+// to the lid silhouette instead of an independently-guessed path. Points are
+// mapped with the same (x, y) -> (x, -y) swap that lidGeo's rotateX(-90deg)
+// bakes in, so this tube sits in the same local space as `lid` and can be
+// parented/positioned identically.
+function buildLidTrimGeometry() {
+  const pts2d = buildLidShape().getPoints(90);
+  const pts3d = pts2d.map((p) => new THREE.Vector3(p.x, 0, -p.y));
+  const curve = new THREE.CatmullRomCurve3(pts3d, true);
+  return new THREE.TubeGeometry(curve, 240, 0.0055, 8, true);
 }
 
 function buildPlateShape() {
@@ -244,6 +260,14 @@ export function createGrandPiano3D(container, options = {}) {
     envMapIntensity: 0.85,
   });
   const feltMat = new THREE.MeshStandardMaterial({ color: 0x6b1620, roughness: 0.95 });
+  // Matching bench's tufted-leather top (GRANDPIANO.jpeg reference).
+  const benchLeather = new THREE.MeshPhysicalMaterial({
+    color: 0x0e0b0a,
+    roughness: 0.5,
+    clearcoat: 0.25,
+    clearcoatRoughness: 0.4,
+    envMapIntensity: 0.7,
+  });
 
   // ---- group root (so the whole instrument can be scaled/positioned by the host) ----
   const root = new THREE.Group();
@@ -325,6 +349,13 @@ export function createGrandPiano3D(container, options = {}) {
   lid.position.set(0, 0, -0.5);
   lid.castShadow = true;
   lidPivot.add(lid);
+
+  // brass piping along the lid's outer edge — same reference detail that
+  // makes GRANDPIANO.jpeg's lid read as fitted furniture, not a bare panel.
+  const lidTrim = new THREE.Mesh(buildLidTrimGeometry(), goldHardware);
+  lidTrim.position.set(0, 0.0015, -0.5);
+  lidPivot.add(lidTrim);
+
   lidPivot.rotation.z = THREE.MathUtils.degToRad(44); // propped open (lifts the +X/treble side)
   root.add(lidPivot);
 
@@ -337,16 +368,24 @@ export function createGrandPiano3D(container, options = {}) {
   root.add(prop);
 
   // ---- legs ----
-  function makeLeg(x, z) {
+  // legRadiusTop/Bottom let the (smaller, lighter) bench legs below reuse
+  // this same builder instead of a second hand-tuned copy.
+  function makeLeg(x, z, legRadiusTop = 0.05, legRadiusBottom = 0.035, legHeight = 0.72) {
     const g = new THREE.Group();
-    const legGeo = new THREE.CylinderGeometry(0.05, 0.035, 0.72, 12);
+    const legGeo = new THREE.CylinderGeometry(legRadiusTop, legRadiusBottom, legHeight, 12);
     const leg = new THREE.Mesh(legGeo, lacquer);
-    leg.position.y = 0.36;
+    leg.position.y = legHeight / 2;
     leg.castShadow = true;
     g.add(leg);
-    const casterGeo = new THREE.SphereGeometry(0.028, 10, 10);
+    // brass cup collar just above the caster ball — reads as furniture-grade
+    // hardware rather than a bare sphere (matches GRANDPIANO.jpeg reference).
+    const cupGeo = new THREE.CylinderGeometry(legRadiusBottom * 1.15, legRadiusBottom * 0.92, 0.026, 14);
+    const cup = new THREE.Mesh(cupGeo, goldHardware);
+    cup.position.y = 0.013;
+    g.add(cup);
+    const casterGeo = new THREE.SphereGeometry(legRadiusBottom * 0.75, 10, 10);
     const caster = new THREE.Mesh(casterGeo, goldHardware);
-    caster.position.y = 0.02;
+    caster.position.y = 0.004;
     g.add(caster);
     g.position.set(x, 0, z);
     return g;
@@ -354,6 +393,41 @@ export function createGrandPiano3D(container, options = {}) {
   root.add(makeLeg(0.12, 0.15));
   root.add(makeLeg(1.42, 0.15));
   root.add(makeLeg(0.62, 2.55));
+
+  // ---- bench (tufted-leather top, matching GRANDPIANO.jpeg's companion
+  // bench) — sits in front of the keyboard, on the player's side. ----
+  const benchGroup = new THREE.Group();
+  const BENCH_W = 0.5;
+  const BENCH_D = 0.3;
+  const BENCH_LEG_H = 0.42;
+  const BENCH_TOP_H = 0.06;
+  [
+    [-BENCH_W / 2 + 0.05, -BENCH_D / 2 + 0.04],
+    [BENCH_W / 2 - 0.05, -BENCH_D / 2 + 0.04],
+    [-BENCH_W / 2 + 0.05, BENCH_D / 2 - 0.04],
+    [BENCH_W / 2 - 0.05, BENCH_D / 2 - 0.04],
+  ].forEach(([lx, lz]) => {
+    const leg = makeLeg(lx, lz, 0.022, 0.016, BENCH_LEG_H);
+    benchGroup.add(leg);
+  });
+  const benchTop = new THREE.Mesh(new THREE.BoxGeometry(BENCH_W, BENCH_TOP_H, BENCH_D), benchLeather);
+  benchTop.position.y = BENCH_LEG_H + BENCH_TOP_H / 2;
+  benchTop.castShadow = true;
+  benchTop.receiveShadow = true;
+  benchGroup.add(benchTop);
+  // a subtle button-tuft grid on the cushion top — small dark dimples via
+  // tiny spheres rather than a texture (keeping the "no external textures"
+  // rule from the file header).
+  const tuftMat = new THREE.MeshStandardMaterial({ color: 0x050403, roughness: 0.8 });
+  for (let ix = -1; ix <= 1; ix++) {
+    for (let iz = -1; iz <= 1; iz++) {
+      const tuft = new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 6), tuftMat);
+      tuft.position.set(ix * (BENCH_W / 4), BENCH_LEG_H + BENCH_TOP_H, iz * (BENCH_D / 4));
+      benchGroup.add(tuft);
+    }
+  }
+  benchGroup.position.set(0.68, 0, -0.62);
+  root.add(benchGroup);
 
   // ---- keybed + keys ----
   const keyboardGroup = new THREE.Group();
