@@ -1,0 +1,542 @@
+// Shared, framework-agnostic 3D grand piano — used by every "round 2"
+// concept instead of the old flat clickable-key widget. Built from
+// procedural Three.js geometry (no external 3D model / no external
+// textures), styled as a generic glossy concert grand — deliberately not
+// reproducing any real manufacturer's wordmark/logo (that's trademarked
+// branding; the shape and lacquer-finish material quality do the work of
+// reading as "premium concert grand" without it). Modeled against the
+// user's own reference photo of an open Steinway lid (gold plate, strings,
+// warm soundboard) for the interior detail below.
+//
+// Usage:
+//   import { createGrandPiano3D, CAMERA_PRESETS } from '../../shared/piano3d.js';
+//   const piano = createGrandPiano3D(containerEl, { cameraPreset: 'hero' });
+//   piano.pressKey(60, { velocity: 0.9, sustain: 1.4 });   // middle C, by MIDI number
+//   piano.dispose();                                        // on section teardown
+
+import * as THREE from 'three';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+import gsap from 'gsap';
+
+const WHITE_KEY_LEN = 0.15; // meters, visible length of a white key
+const WHITE_KEY_WIDTH = 0.0235;
+const WHITE_KEY_GAP = 0.001;
+const BLACK_KEY_LEN = 0.095;
+const BLACK_KEY_WIDTH = 0.012;
+const BLACK_KEY_HEIGHT = 0.018;
+const WHITE_KEY_HEIGHT = 0.014;
+
+const NOTE_ORDER = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const BLACK_LETTERS = new Set(['C#', 'D#', 'F#', 'G#', 'A#']);
+const START_MIDI = 21; // A0
+const END_MIDI = 108; // C8, full 88-key range
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// Two named camera anchors shared by every concept's choreography (dolly-in,
+// camera-fly, etc.) so tuning the shot only ever happens in one place instead
+// of being copy-pasted per concept.
+export const CAMERA_PRESETS = {
+  // The classic "grand piano" 3/4 shot, angled down into the open lid so the
+  // gold plate/strings read clearly rather than being a distant sliver.
+  hero: { pos: [4.35, 3.05, -0.5], look: [0.75, 0.68, 1.35] },
+  // Close-up on the keyboard — reuses the SAME viewing direction as hero,
+  // just closer (two independently-guessed angles never lined up right).
+  keys: { pos: [2.35, 1.72, -0.72], look: [0.8, 0.74, 0.05] },
+  // Hero pulled back further, for a wide "whole stage" establishing shot.
+  stage: { pos: [5.9, 3.7, -0.7], look: [0.75, 0.68, 1.35] },
+};
+
+function buildBodyShape() {
+  // A stylized concert-grand silhouette (top-down), roughly to real scale
+  // in meters. Origin sits at the keyboard's front-left corner; +Z runs
+  // away from the player toward the tail, +X runs left-to-right (bass to
+  // treble — the camera's default "hero" angle looks in from the treble/+X
+  // side, per CAMERA_PRESETS above).
+  // Note: Y here is negated distance-from-player-away-from-keyboard — the
+  // body/rim/lid all get rotateX(-90deg), which maps shape-Y to world -Z,
+  // so authoring with negative Y gives the intended positive world Z
+  // (matching the leg/light/camera coordinates below, which use positive Z
+  // for "toward the tail").
+  const s = new THREE.Shape();
+  s.moveTo(0, 0);
+  s.lineTo(0, -0.6);
+  s.bezierCurveTo(0, -1.0, -0.36, -1.1, -0.36, -1.62);
+  s.bezierCurveTo(-0.36, -2.24, 0.03, -2.48, 0.56, -2.7);
+  s.bezierCurveTo(0.98, -2.86, 1.3, -2.9, 1.62, -2.86);
+  s.bezierCurveTo(2.05, -2.81, 2.16, -2.44, 2.08, -2.0);
+  s.bezierCurveTo(1.99, -1.5, 1.78, -1.12, 1.64, -0.74);
+  s.bezierCurveTo(1.55, -0.44, 1.52, -0.2, 1.52, 0);
+  s.lineTo(0, 0);
+  return s;
+}
+
+function buildLidShape() {
+  // Slightly inset copy of the body shape's back 2/3 (the lid doesn't
+  // cover the keyboard end).
+  const s = new THREE.Shape();
+  s.moveTo(0.08, -0.54);
+  s.bezierCurveTo(0.08, -0.9, -0.29, -1.02, -0.29, -1.6);
+  s.bezierCurveTo(-0.29, -2.2, 0.09, -2.4, 0.58, -2.6);
+  s.bezierCurveTo(0.98, -2.75, 1.28, -2.79, 1.58, -2.75);
+  s.bezierCurveTo(1.98, -2.7, 2.07, -2.38, 2.0, -1.98);
+  s.bezierCurveTo(1.92, -1.55, 1.74, -1.2, 1.6, -0.82);
+  s.bezierCurveTo(1.52, -0.6, 1.5, -0.52, 1.5, -0.52);
+  s.lineTo(0.08, -0.54);
+  return s;
+}
+
+function buildPlateShape() {
+  // The cast-iron plate: an inset copy of the lid footprint (sits inside
+  // the rim with a visible gap at the perimeter) with three oval hand-hole
+  // cutouts, matching the reference photo of the real instrument's open lid.
+  const s = new THREE.Shape();
+  s.moveTo(0.22, -0.62);
+  s.bezierCurveTo(0.22, -0.94, -0.06, -1.04, -0.06, -1.56);
+  s.bezierCurveTo(-0.06, -2.1, 0.26, -2.28, 0.66, -2.46);
+  s.bezierCurveTo(1.0, -2.6, 1.24, -2.64, 1.48, -2.6);
+  s.bezierCurveTo(1.8, -2.55, 1.87, -2.28, 1.8, -1.94);
+  s.bezierCurveTo(1.72, -1.55, 1.56, -1.22, 1.44, -0.88);
+  s.bezierCurveTo(1.37, -0.68, 1.35, -0.6, 1.35, -0.6);
+  s.lineTo(0.22, -0.62);
+
+  [
+    { cx: 0.55, cy: -1.15, rx: 0.16, ry: 0.22 },
+    { cx: 0.95, cy: -1.75, rx: 0.19, ry: 0.26 },
+    { cx: 1.25, cy: -2.15, rx: 0.14, ry: 0.2 },
+  ].forEach(({ cx, cy, rx, ry }) => {
+    const hole = new THREE.Path();
+    hole.absellipse(cx, cy, rx, ry, 0, Math.PI * 2, false, 0);
+    s.holes.push(hole);
+  });
+  return s;
+}
+
+// A small custom "studio" environment: mostly dark, with a handful of
+// bright rectangular panels at deliberate angles. Three.js's stock
+// RoomEnvironment (three/addons/environments/RoomEnvironment.js) lights an
+// enclosed room from ~6 directions with several intensity-17-100 panels —
+// excellent for varied product shots, but on a clearcoat=1 near-black
+// lacquer it means there's bright light coming from almost everywhere at
+// once, which averages out across the surface's curvature into a flat grey
+// wash instead of "black with crisp highlights." Keeping most directions
+// dark and using only a few strong sources produces the sharp, streaky
+// highlight sweeps a real glossy piano photograph has.
+function makeEnvironment(renderer) {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0x030303);
+
+  function panel(w, h, x, y, z, ry, color, intensity) {
+    const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false, side: THREE.DoubleSide });
+    mat.color.multiplyScalar(intensity);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    mesh.position.set(x, y, z);
+    mesh.rotation.y = ry;
+    envScene.add(mesh);
+  }
+  panel(9, 2.4, 2, 6, -6, 0, 0xfff3d6, 5); // main overhead sweep down the lid/lacquer
+  panel(6, 10, -9, 2, 1, Math.PI / 2, 0xcfe0ff, 1.4); // cool side fill
+  panel(4, 7, 8, 3, 4, -Math.PI / 2, 0xffdfae, 2.2); // warm rim kicker
+  panel(7, 1, 0, -1, 7, Math.PI, 0xffe9c8, 1.1); // low warm bounce behind the tail
+
+  const envMap = pmrem.fromScene(envScene, 0.035).texture;
+  envScene.traverse((o) => {
+    o.geometry?.dispose();
+    o.material?.dispose();
+  });
+  pmrem.dispose();
+  return envMap;
+}
+
+export function createGrandPiano3D(container, options = {}) {
+  const {
+    cameraPreset = 'hero', // 'hero' | 'keys' | 'stage'
+    exposure = 1.05,
+    floor = true,
+    floorColor = 0x0b0b0e,
+    accentColor = 0xc9a86a,
+    bodyColor = 0x07070a,
+  } = options;
+
+  const scene = new THREE.Scene();
+  scene.background = null;
+
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 50);
+  const preset = CAMERA_PRESETS[cameraPreset] || CAMERA_PRESETS.hero;
+  camera.position.set(...preset.pos);
+  camera.lookAt(...preset.look);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = exposure;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.domElement.style.display = 'block';
+  renderer.domElement.style.width = '100%';
+  renderer.domElement.style.height = '100%';
+  container.appendChild(renderer.domElement);
+
+  const envMap = makeEnvironment(renderer);
+  scene.environment = envMap;
+
+  // ---- materials ----
+  // DoubleSide on the extruded-shape materials: the extrude's winding
+  // direction is easy to get backwards by hand (see the coordinate-sign
+  // comment on buildBodyShape) and a single-sided material would render
+  // large chunks of the case invisible/inside-out if it's ever off.
+  const lacquer = new THREE.MeshPhysicalMaterial({
+    color: bodyColor,
+    metalness: 0.06,
+    roughness: 0.05,
+    clearcoat: 1,
+    clearcoatRoughness: 0.03,
+    envMapIntensity: 1.35,
+    side: THREE.DoubleSide,
+  });
+  const lacquerInner = new THREE.MeshPhysicalMaterial({
+    color: 0x040404,
+    metalness: 0.05,
+    roughness: 0.24,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 0.9,
+    side: THREE.DoubleSide,
+  });
+  const goldHardware = new THREE.MeshStandardMaterial({
+    color: accentColor,
+    metalness: 0.92,
+    roughness: 0.25,
+    envMapIntensity: 1.3,
+  });
+  const plateGold = new THREE.MeshStandardMaterial({
+    color: 0xb8935a,
+    metalness: 0.75,
+    roughness: 0.4,
+    envMapIntensity: 1.0,
+  });
+  const soundboardMat = new THREE.MeshStandardMaterial({
+    color: 0x7a4a26,
+    roughness: 0.7,
+    envMapIntensity: 0.4,
+  });
+  const stringMat = new THREE.MeshStandardMaterial({
+    color: 0xe7e2d6,
+    metalness: 0.85,
+    roughness: 0.3,
+    envMapIntensity: 1.1,
+  });
+  const whiteKeyMat = new THREE.MeshPhysicalMaterial({
+    color: 0xf6f2e7,
+    roughness: 0.35,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.25,
+    envMapIntensity: 0.6,
+  });
+  const blackKeyMat = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0a0c,
+    roughness: 0.26,
+    clearcoat: 0.55,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 0.85,
+  });
+  const feltMat = new THREE.MeshStandardMaterial({ color: 0x6b1620, roughness: 0.95 });
+
+  // ---- group root (so the whole instrument can be scaled/positioned by the host) ----
+  const root = new THREE.Group();
+  scene.add(root);
+
+  // ---- body ----
+  const bodyShape = buildBodyShape();
+  const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, {
+    depth: 0.42,
+    bevelEnabled: true,
+    bevelThickness: 0.012,
+    bevelSize: 0.012,
+    bevelSegments: 3,
+    curveSegments: 32,
+  });
+  bodyGeo.rotateX(-Math.PI / 2);
+  bodyGeo.translate(0, 0.32, 0); // sits on legs
+  const body = new THREE.Mesh(bodyGeo, lacquer);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  root.add(body);
+  // body top cap sits at world y = 0.32 + 0.42 = 0.74 — the interior
+  // detail below is layered just above it.
+
+  // ---- open-lid interior: soundboard, gold plate, strings ----
+  // (Modeled directly on the user's Steinway reference photo — this is
+  // what used to be a single flat grey "rim" slab.)
+  const soundboardGeo = new THREE.ShapeGeometry(buildLidShape(), 32);
+  soundboardGeo.rotateX(-Math.PI / 2);
+  soundboardGeo.translate(0, 0.741, 0);
+  const soundboard = new THREE.Mesh(soundboardGeo, soundboardMat);
+  soundboard.receiveShadow = true;
+  root.add(soundboard);
+
+  const plateGeo = new THREE.ExtrudeGeometry(buildPlateShape(), {
+    depth: 0.014,
+    bevelEnabled: true,
+    bevelThickness: 0.004,
+    bevelSize: 0.004,
+    bevelSegments: 2,
+    curveSegments: 24,
+  });
+  plateGeo.rotateX(-Math.PI / 2);
+  plateGeo.translate(0, 0.75, 0);
+  const plate = new THREE.Mesh(plateGeo, plateGold);
+  plate.receiveShadow = true;
+  root.add(plate);
+
+  const STRING_COUNT = 40;
+  const stringsGroup = new THREE.Group();
+  for (let i = 0; i < STRING_COUNT; i++) {
+    const t = i / (STRING_COUNT - 1); // 0 = bass (long, thick), 1 = treble (short, thin)
+    const x = lerp(0.08, 1.86, t);
+    const len = lerp(2.3, 0.68, t);
+    const zStart = lerp(0.6, 0.66, t);
+    const radius = lerp(0.0017, 0.0008, t);
+    const geo = new THREE.CylinderGeometry(radius, radius, len, 6);
+    const mesh = new THREE.Mesh(geo, stringMat);
+    mesh.rotation.x = Math.PI / 2;
+    mesh.position.set(x, 0.768, zStart + len / 2);
+    stringsGroup.add(mesh);
+  }
+  root.add(stringsGroup);
+
+  // ---- lid (propped open) ----
+  const lidShape = buildLidShape();
+  const lidGeo = new THREE.ExtrudeGeometry(lidShape, {
+    depth: 0.018,
+    bevelEnabled: true,
+    bevelThickness: 0.004,
+    bevelSize: 0.004,
+    bevelSegments: 2,
+    curveSegments: 32,
+  });
+  lidGeo.rotateX(-Math.PI / 2);
+  const lidPivot = new THREE.Group();
+  lidPivot.position.set(0, 0.735, 0.5);
+  const lid = new THREE.Mesh(lidGeo, lacquer);
+  lid.position.set(0, 0, -0.5);
+  lid.castShadow = true;
+  lidPivot.add(lid);
+  lidPivot.rotation.z = THREE.MathUtils.degToRad(44); // propped open (lifts the +X/treble side)
+  root.add(lidPivot);
+
+  // lid prop stick
+  const propGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.55, 8);
+  const prop = new THREE.Mesh(propGeo, lacquer);
+  prop.position.set(1.3, 1.02, 1.5);
+  prop.rotation.z = THREE.MathUtils.degToRad(8);
+  prop.rotation.x = THREE.MathUtils.degToRad(-4);
+  root.add(prop);
+
+  // ---- legs ----
+  function makeLeg(x, z) {
+    const g = new THREE.Group();
+    const legGeo = new THREE.CylinderGeometry(0.05, 0.035, 0.72, 12);
+    const leg = new THREE.Mesh(legGeo, lacquer);
+    leg.position.y = 0.36;
+    leg.castShadow = true;
+    g.add(leg);
+    const casterGeo = new THREE.SphereGeometry(0.028, 10, 10);
+    const caster = new THREE.Mesh(casterGeo, goldHardware);
+    caster.position.y = 0.02;
+    g.add(caster);
+    g.position.set(x, 0, z);
+    return g;
+  }
+  root.add(makeLeg(0.12, 0.15));
+  root.add(makeLeg(1.42, 0.15));
+  root.add(makeLeg(0.62, 2.55));
+
+  // ---- keybed + keys ----
+  const keyboardGroup = new THREE.Group();
+  keyboardGroup.position.set(0.14, 0.7, -0.08);
+  root.add(keyboardGroup);
+
+  const keybedGeo = new THREE.BoxGeometry(1.22, 0.02, WHITE_KEY_LEN + 0.02);
+  const keybed = new THREE.Mesh(keybedGeo, lacquerInner);
+  keybed.position.set(0.61, -0.011, WHITE_KEY_LEN / 2);
+  keyboardGroup.add(keybed);
+
+  // fallboard (decorative bar behind the keys, where the maker's name would go —
+  // left plain on purpose, see file header)
+  const fallGeo = new THREE.BoxGeometry(1.24, 0.05, 0.02);
+  const fallboard = new THREE.Mesh(fallGeo, lacquer);
+  fallboard.position.set(0.61, 0.03, -0.02);
+  keyboardGroup.add(fallboard);
+  const feltStrip = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.006, 0.01), feltMat);
+  feltStrip.position.set(0.61, 0.005, 0.005);
+  keyboardGroup.add(feltStrip);
+
+  const whiteKeyGeo = new THREE.BoxGeometry(WHITE_KEY_WIDTH, WHITE_KEY_HEIGHT, WHITE_KEY_LEN);
+  whiteKeyGeo.translate(0, -WHITE_KEY_HEIGHT / 2, WHITE_KEY_LEN / 2); // pivot at back-top edge
+  const blackKeyGeo = new THREE.BoxGeometry(BLACK_KEY_WIDTH, BLACK_KEY_HEIGHT, BLACK_KEY_LEN);
+  blackKeyGeo.translate(0, -BLACK_KEY_HEIGHT / 2, BLACK_KEY_LEN / 2);
+
+  const keyMeshes = new Map(); // midi -> mesh
+  const whites = [];
+  const blacks = [];
+  for (let midi = START_MIDI; midi <= END_MIDI; midi++) {
+    const letter = NOTE_ORDER[midi % 12];
+    if (BLACK_LETTERS.has(letter)) blacks.push({ midi, afterWhiteIndex: whites.length - 1 });
+    else whites.push({ midi });
+  }
+  const wCount = whites.length;
+  const totalWidth = wCount * (WHITE_KEY_WIDTH + WHITE_KEY_GAP);
+  const startX = 0.61 - totalWidth / 2;
+
+  whites.forEach((w, i) => {
+    const mesh = new THREE.Mesh(whiteKeyGeo, whiteKeyMat);
+    mesh.position.set(startX + i * (WHITE_KEY_WIDTH + WHITE_KEY_GAP), WHITE_KEY_HEIGHT, 0);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    keyboardGroup.add(mesh);
+    keyMeshes.set(w.midi, mesh);
+  });
+  blacks.forEach((b) => {
+    const x = startX + (b.afterWhiteIndex + 1) * (WHITE_KEY_WIDTH + WHITE_KEY_GAP);
+    const mesh = new THREE.Mesh(blackKeyGeo, blackKeyMat);
+    mesh.position.set(x, WHITE_KEY_HEIGHT + 0.004, -0.018);
+    mesh.castShadow = true;
+    keyboardGroup.add(mesh);
+    keyMeshes.set(b.midi, mesh);
+  });
+
+  // music desk
+  const deskGeo = new THREE.BoxGeometry(1.0, 0.28, 0.02);
+  const desk = new THREE.Mesh(deskGeo, lacquer);
+  desk.position.set(0.61, 1.02, 0.08);
+  desk.rotation.x = THREE.MathUtils.degToRad(-18);
+  root.add(desk);
+
+  // pedals, hanging below the keybed's front-center on a simple lyre post
+  const lyrePost = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 8), lacquer);
+  lyrePost.position.set(0.77, 0.36, -0.05);
+  root.add(lyrePost);
+  [0.62, 0.77, 0.92].forEach((x) => {
+    const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, 0.1), goldHardware);
+    pedal.position.set(x, 0.07, -0.05);
+    pedal.rotation.x = THREE.MathUtils.degToRad(-8);
+    root.add(pedal);
+  });
+
+  // ---- floor: real-time mirror reflection + a shadow-only overlay ----
+  // (a plain Reflector can't receive shadows, so a transparent
+  // ShadowMaterial plane sits a hair above it to catch the piano's contact
+  // shadow without breaking the mirror.)
+  let reflector = null;
+  let shadowCatcher = null;
+  if (floor) {
+    const floorGeo = new THREE.CircleGeometry(4.5, 64);
+    reflector = new Reflector(floorGeo, {
+      textureWidth: 768,
+      textureHeight: 768,
+      color: floorColor,
+      clipBias: 0.0008,
+      multisample: 2,
+    });
+    reflector.rotation.x = -Math.PI / 2;
+    scene.add(reflector);
+
+    shadowCatcher = new THREE.Mesh(floorGeo, new THREE.ShadowMaterial({ opacity: 0.5 }));
+    shadowCatcher.rotation.x = -Math.PI / 2;
+    shadowCatcher.position.y = 0.002;
+    shadowCatcher.receiveShadow = true;
+    scene.add(shadowCatcher);
+  }
+
+  // ---- lighting ----
+  // Direct lights stay comparatively modest — the custom studio environment
+  // (above) supplies the crisp highlight streaks; these mainly carve out
+  // shadow/form and make the gold hardware pop.
+  const key = new THREE.SpotLight(0xfff2d9, 42, 12, Math.PI / 6, 0.35, 1.3);
+  key.position.set(2.4, 3.4, 1.6);
+  key.target.position.set(0.7, 0.6, 1.3);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.bias = -0.0015;
+  scene.add(key, key.target);
+
+  const fill = new THREE.DirectionalLight(0x9fb6d8, 1.1);
+  fill.position.set(-2.5, 1.6, -1.5);
+  scene.add(fill);
+
+  const rimLight = new THREE.DirectionalLight(0xffe6bf, 1.6);
+  rimLight.position.set(-1.2, 1.8, 3.4);
+  scene.add(rimLight);
+
+  const hemi = new THREE.HemisphereLight(0x445066, 0x0a0a0c, 0.4);
+  scene.add(hemi);
+
+  // ---- resize handling ----
+  function resize() {
+    const w = container.clientWidth || 1;
+    const h = container.clientHeight || 1;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  const ro = new ResizeObserver(resize);
+  ro.observe(container);
+
+  // ---- render loop ----
+  let running = true;
+  function loop() {
+    if (!running) return;
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // ---- key press animation ----
+  function pressKey(midi, { velocity = 0.9, sustain = 1 } = {}) {
+    const mesh = keyMeshes.get(Math.round(midi));
+    if (!mesh) return;
+    const black = mesh.geometry === blackKeyGeo;
+    const angle = (black ? 4.2 : 3.2) * clamp(velocity, 0.3, 1);
+    // sustain (from the active recital piece's performance profile, see
+    // shared/recital.js) stretches how long the key visually stays down —
+    // a cheap but effective way for each piece to *feel* different, not
+    // just sound different.
+    const holdTime = 0.32 * clamp(sustain, 0.6, 2.4);
+    gsap.killTweensOf(mesh.rotation);
+    gsap.timeline()
+      .to(mesh.rotation, { x: THREE.MathUtils.degToRad(angle), duration: 0.05, ease: 'power1.out' })
+      .to(mesh.rotation, { x: 0, duration: holdTime, ease: 'power2.out' });
+  }
+
+  function flyTo(presetName, duration = 1.6) {
+    const p = CAMERA_PRESETS[presetName];
+    if (!p) return;
+    gsap.to(camera.position, { x: p.pos[0], y: p.pos[1], z: p.pos[2], duration, ease: 'power2.inOut' });
+    // animate lookAt by tweening a dummy target vector each frame
+    const from = { x: preset.look[0], y: preset.look[1], z: preset.look[2] };
+    gsap.to(from, {
+      x: p.look[0],
+      y: p.look[1],
+      z: p.look[2],
+      duration,
+      ease: 'power2.inOut',
+      onUpdate: () => camera.lookAt(from.x, from.y, from.z),
+    });
+  }
+
+  function dispose() {
+    running = false;
+    ro.disconnect();
+    reflector?.dispose();
+    renderer.dispose();
+    envMap.dispose();
+    if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
+  }
+
+  return { pressKey, flyTo, resize, dispose, scene, camera, renderer, root };
+}

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Santiago — Fog Gate</title>
+    <meta
+      name="description"
+      content="Santiago — machine learning, piano, and the Lands Between. A cinematic portfolio."
+    />
+
+    <!-- Mark that JS is available so we can pre-hide animated elements without
+         a flash-of-unrevealed-content; reduced-motion users get them shown via CSS. -->
+    <script>
+      document.documentElement.classList.add('js');
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Full-screen WebGL fog + ember shader: the constant backdrop -->
+    <canvas id="fog" aria-hidden="true"></canvas>
+    <!-- Drifting ember particles (canvas 2D) -->
+    <canvas id="embers" aria-hidden="true"></canvas>
+    <!-- Static vignette / grain overlays -->
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <a class="skip-link" href="#projects">Skip to content</a>
+
+    <main>
+      <!-- ============ HERO ============ -->
+      <section class="hero" id="hero">
+        <div class="hero-inner">
+          <p class="hero-eyebrow anim-hide">Lost Grace guides thee</p>
+          <div class="rule rule--top anim-hide"></div>
+          <h1 class="hero-title" aria-label="Santiago">
+            <span class="ht">S</span><span class="ht">A</span><span class="ht">N</span
+            ><span class="ht">T</span><span class="ht">I</span><span class="ht">A</span
+            ><span class="ht">G</span><span class="ht">O</span>
+          </h1>
+          <div class="rule rule--bot anim-hide"></div>
+          <p class="hero-tag anim-hide">
+            Machine learning, piano, and the Lands Between.
+          </p>
+        </div>
+        <div class="scroll-cue anim-hide" aria-hidden="true">
+          <span>Walk toward the fog</span>
+          <span class="cue-arrow">&#8595;</span>
+        </div>
+      </section>
+
+      <!-- ============ PROJECTS ============ -->
+      <section class="chapter" id="projects">
+        <div class="chapter-pin">
+          <div class="title-card">
+            <div class="card-rule card-rule--top"></div>
+            <p class="card-kicker">Chapter I</p>
+            <h2 class="card-title">Great Runes</h2>
+            <p class="card-sub">Machine-learning works</p>
+            <div class="card-rule card-rule--bot"></div>
+          </div>
+        </div>
+        <div class="chapter-content">
+          <div class="content-head anim-hide">
+            <span class="content-head__mark">&#10022;</span>
+            <p class="content-head__label">Selected Works</p>
+          </div>
+          <div class="cards" id="projects-grid"></div>
+        </div>
+      </section>
+
+      <!-- ============ PIANO ============ -->
+      <section class="chapter" id="piano">
+        <div class="chapter-pin">
+          <div class="title-card">
+            <div class="card-rule card-rule--top"></div>
+            <p class="card-kicker">Chapter II</p>
+            <h2 class="card-title">The Grand Chord</h2>
+            <p class="card-sub">A playable piano</p>
+            <div class="card-rule card-rule--bot"></div>
+          </div>
+        </div>
+        <div class="chapter-content">
+          <div class="piano-wrap anim-hide">
+            <p class="piano-intro" id="piano-intro"></p>
+            <div class="piano-controls">
+              <button type="button" class="btn" id="liebestraum-btn">
+                <span class="btn-dot"></span>
+                <span class="btn-label">Play Liebestraum No.&nbsp;3</span>
+              </button>
+              <p class="piano-hint">Click, tap, or use your keyboard row&nbsp;<kbd>A</kbd>&hellip;<kbd>K</kbd></p>
+            </div>
+            <div class="piano-scroll">
+              <div class="piano" id="piano-keys" role="group" aria-label="Playable piano keyboard"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ HOBBIES ============ -->
+      <section class="chapter" id="hobbies">
+        <div class="chapter-pin">
+          <div class="title-card">
+            <div class="card-rule card-rule--top"></div>
+            <p class="card-kicker">Chapter III</p>
+            <h2 class="card-title">Pastimes</h2>
+            <p class="card-sub">Between the battles</p>
+            <div class="card-rule card-rule--bot"></div>
+          </div>
+        </div>
+        <div class="chapter-content">
+          <div class="hobbies" id="hobbies-grid"></div>
+        </div>
+      </section>
+
+      <!-- ============ CONTACT ============ -->
+      <section class="chapter" id="contact">
+        <div class="chapter-pin">
+          <div class="title-card">
+            <div class="card-rule card-rule--top"></div>
+            <p class="card-kicker">Chapter IV</p>
+            <h2 class="card-title">Summoning Sign</h2>
+            <p class="card-sub">Leave a message</p>
+            <div class="card-rule card-rule--bot"></div>
+          </div>
+        </div>
+        <div class="chapter-content">
+          <div class="contact anim-hide" id="contact-links"></div>
+          <footer class="site-foot">
+            <div class="rule rule--foot"></div>
+            <p>Santiago &middot; forged in the Lands Between</p>
+          </footer>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

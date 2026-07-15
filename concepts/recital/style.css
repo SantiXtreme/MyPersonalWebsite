@@ -1,0 +1,899 @@
+/* ============================================================
+   Recital — a warm, hushed theatre. Elegant serif typography,
+   a velvet-curtain entrance, and a real 3D grand piano under a
+   single spotlight. All atmosphere is hand-built (CSS + canvas),
+   no photographs. Near-black warm noir, aged gold, rare wine.
+   ============================================================ */
+
+:root {
+  --noir: #0c0a09;       /* warm near-black house */
+  --noir-2: #14100e;     /* panel lift */
+  --noir-3: #1c1613;
+  --gold: #c9a86a;       /* aged brass / footlights */
+  --gold-bright: #e2c489;
+  --wine: #6b1620;       /* velvet — a rare accent */
+  --wine-deep: #490d15;
+  --wine-hi: #7d1d28;
+  --bone: #ece5d6;
+  --bone-dim: rgba(236, 229, 214, 0.62);
+  --bone-faint: rgba(236, 229, 214, 0.32);
+  --hair: rgba(236, 229, 214, 0.12);
+
+  --serif-display: "Cormorant Garamond", "Georgia", serif;
+  --serif-body: "Newsreader", "Georgia", serif;
+
+  --edge: clamp(1.25rem, 5vw, 5rem);
+  --maxw: 1120px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+html {
+  scroll-behavior: auto; /* Lenis handles smoothing — avoid double smoothing */
+}
+
+body {
+  min-height: 100svh;
+  background: var(--noir);
+  color: var(--bone);
+  font-family: var(--serif-body);
+  font-weight: 300;
+  font-size: clamp(1rem, 0.94rem + 0.34vw, 1.16rem);
+  line-height: 1.72;
+  letter-spacing: 0.006em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* warm ambient wash so the "house" never reads as flat pure black */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(201, 168, 106, 0.08), transparent 55%),
+    radial-gradient(140% 120% at 50% 120%, rgba(107, 22, 32, 0.14), transparent 60%),
+    var(--noir);
+}
+
+/* ---- filmic grain ---- */
+#grain {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 60;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0.05;
+}
+
+/* ---- skip link ---- */
+.skip-link {
+  position: fixed;
+  left: 50%;
+  top: -60px;
+  transform: translateX(-50%);
+  z-index: 120;
+  background: var(--bone);
+  color: var(--noir);
+  padding: 0.5rem 1rem;
+  border-radius: 3px;
+  text-decoration: none;
+  font-family: var(--serif-body);
+  letter-spacing: 0.04em;
+  transition: top 0.25s ease;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* ============================================================
+   Fixed stage layer — the 3D piano and its light
+   ============================================================ */
+.stage-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.piano-mount {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#dust {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.9;
+}
+
+/* spotlight cone from above — warm, soft, screen-blended */
+.spotlight {
+  --pulse: 0;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(
+      62% 78% at 50% 6%,
+      rgba(255, 240, 214, calc(0.16 + var(--pulse) * 0.14)),
+      rgba(255, 232, 196, 0.06) 34%,
+      transparent 66%
+    );
+}
+/* a faint beam edge, wider at the floor */
+.spotlight::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -6%;
+  width: 74%;
+  height: 116%;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 238, 208, 0.05),
+    rgba(255, 232, 196, 0.02) 40%,
+    transparent 72%
+  );
+  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+  filter: blur(6px);
+}
+
+/* pooled light on the stage floor beneath the instrument — tinted per the
+   active recital piece (see initStage's pulse() in main.js), so each piece
+   leaves a subtly different-colored glow at the instrument's base rather
+   than the same fixed gold every time. */
+.floor-glow {
+  --tint-rgb: 201, 168, 106;
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: min(76vw, 900px);
+  height: 30vh;
+  transform: translateX(-50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    60% 100% at 50% 100%,
+    rgba(var(--tint-rgb), 0.22),
+    rgba(var(--tint-rgb), 0.06) 40%,
+    transparent 72%
+  );
+  filter: blur(4px);
+  transition: background 1.1s ease;
+}
+
+/* vignette to sink the edges of the house into darkness */
+.stage-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    115% 100% at 50% 42%,
+    transparent 38%,
+    rgba(6, 5, 4, 0.55) 78%,
+    rgba(4, 3, 3, 0.9) 100%
+  );
+}
+
+.stage-layer.is-performing .spotlight {
+  animation: shimmer 5.5s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+/* ============================================================
+   Entrance — house lights + velvet curtain
+   ============================================================ */
+.houselights {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  background: radial-gradient(
+    90% 70% at 50% 30%,
+    rgba(201, 168, 106, 0.16),
+    transparent 60%
+  );
+  opacity: 1;
+}
+
+.theatre-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.curtain-valance {
+  position: absolute;
+  top: 0;
+  left: -2%;
+  width: 104%;
+  height: 16vh;
+  z-index: 2;
+  background:
+    /* gold trim glinting along the scalloped hem — folded into this same
+       masked layer (rather than a separate ::after rectangle) so the trim
+       actually follows the scallop curve instead of cutting a flat straight
+       seam across it */
+    linear-gradient(180deg, transparent 84%, rgba(226, 196, 137, 0.5) 95%, rgba(226, 196, 137, 0.12) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 60%),
+    repeating-linear-gradient(
+      90deg,
+      var(--wine-deep) 0,
+      var(--wine) 34px,
+      var(--wine-hi) 52px,
+      var(--wine) 70px,
+      var(--wine-deep) 104px
+    ),
+    /* a second, off-period repeating layer breaks up the perfectly regular
+       fold width so it reads as loosely-hung fabric, not a printed stripe */
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.16) 0,
+      transparent 19px,
+      transparent 41px,
+      rgba(255, 230, 200, 0.05) 55px,
+      rgba(0, 0, 0, 0.1) 73px
+    );
+  box-shadow: inset 0 -18px 30px rgba(0, 0, 0, 0.5);
+  -webkit-mask: radial-gradient(circle 30px at 50% 0, transparent 29px, #000 30px) 0 100% / 60px 30px repeat-x,
+    linear-gradient(#000, #000) top / 100% calc(100% - 26px) no-repeat;
+  mask: radial-gradient(circle 30px at 50% 0, transparent 29px, #000 30px) 0 100% / 60px 30px repeat-x,
+    linear-gradient(#000, #000) top / 100% calc(100% - 26px) no-repeat;
+}
+
+.curtain-panel {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 52%;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--wine-deep) 0,
+      var(--wine) 30px,
+      var(--wine-hi) 46px,
+      var(--wine) 62px,
+      var(--wine-deep) 92px
+    ),
+    /* off-period irregularity layer, same purpose as the valance's above */
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.14) 0,
+      transparent 23px,
+      transparent 48px,
+      rgba(255, 230, 200, 0.045) 61px,
+      rgba(0, 0, 0, 0.09) 81px
+    );
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.55);
+  will-change: transform;
+}
+.curtain-panel::before {
+  /* vertical light-catch sheen down the folds */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 220, 180, 0.06),
+    transparent 30%,
+    transparent 78%,
+    rgba(0, 0, 0, 0.28)
+  );
+}
+.curtain-left {
+  left: 0;
+  border-right: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow: inset -40px 0 70px rgba(0, 0, 0, 0.55), inset 0 0 120px rgba(0, 0, 0, 0.4);
+}
+.curtain-right {
+  right: 0;
+  border-left: 2px solid rgba(0, 0, 0, 0.4);
+  box-shadow: inset 40px 0 70px rgba(0, 0, 0, 0.55), inset 0 0 120px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================================
+   Header chrome
+   ============================================================ */
+.chrome {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(1rem, 2.4vw, 1.6rem) var(--edge);
+  pointer-events: none;
+}
+.wordmark {
+  font-family: var(--serif-display);
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.9s ease, transform 0.9s ease;
+}
+.wordmark.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.chrome-note {
+  font-family: var(--serif-body);
+  font-style: italic;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  color: var(--bone-faint);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.chrome-note.is-visible {
+  opacity: 1;
+}
+
+/* ============================================================
+   Layout primitives + shared type
+   ============================================================ */
+main {
+  position: relative;
+  z-index: 2;
+}
+
+.section {
+  position: relative;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: clamp(5rem, 15vh, 12rem) var(--edge);
+  background: var(--noir); /* opaque — occludes the fixed piano outside the stage */
+}
+
+.section-head {
+  max-width: 40ch;
+  margin-bottom: clamp(2.5rem, 6vh, 4.5rem);
+}
+
+.eyebrow {
+  font-family: var(--serif-body);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 1.2rem;
+}
+
+.section-title {
+  font-family: var(--serif-display);
+  font-weight: 400;
+  font-size: clamp(2.4rem, 1.5rem + 4.4vw, 5rem);
+  line-height: 1.02;
+  letter-spacing: 0.004em;
+  margin: 0;
+  color: var(--bone);
+}
+
+.section-lede {
+  margin: 1.7rem 0 0;
+  max-width: 48ch;
+  color: var(--bone-dim);
+  font-size: 1.08rem;
+  line-height: 1.78;
+}
+
+/* ============================================================
+   OVERTURE / hero
+   ============================================================ */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 var(--edge);
+  background: var(--noir);
+  transition: background-color 1.1s ease;
+}
+/* During the curtain-parting beat only: let the fixed stage-layer (the 3D
+   piano, briefly brought up to a "peek" opacity in initEntrance()) show
+   through instead of the opaque house — the curtain opens on a glimpse of
+   the lit stage before the hero text resolves, instead of flat black. */
+.hero.is-revealing {
+  background: transparent;
+}
+.hero-inner {
+  max-width: var(--maxw);
+  width: 100%;
+  margin: 0 auto;
+}
+.hero-eyebrow {
+  margin-bottom: 1.8rem;
+  color: var(--bone-dim);
+}
+.name {
+  font-family: var(--serif-display);
+  font-weight: 300;
+  font-size: clamp(5rem, 3rem + 20vw, 17rem);
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  margin: 0;
+  color: var(--bone);
+  text-shadow: 0 0 80px rgba(0, 0, 0, 0.6);
+}
+.tagline {
+  font-family: var(--serif-body);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1.15rem, 0.9rem + 1.1vw, 1.7rem);
+  line-height: 1.5;
+  color: var(--bone-dim);
+  margin: 2rem 0 0;
+  max-width: 34ch;
+}
+.scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  text-decoration: none;
+  color: var(--bone-dim);
+  transition: color 0.5s ease;
+}
+.scroll-cue:hover,
+.scroll-cue:focus-visible {
+  color: var(--gold);
+}
+.scroll-word {
+  font-family: var(--serif-body);
+  font-style: italic;
+  font-size: 0.9rem;
+  letter-spacing: 0.14em;
+}
+.scroll-line {
+  width: 1px;
+  height: 56px;
+  background: linear-gradient(to bottom, var(--bone-dim), transparent);
+  transform-origin: top;
+  animation: drift 3s ease-in-out infinite;
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: scaleY(0.5);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   THE STAGE — transparent so the fixed piano shows through
+   ============================================================ */
+.stage {
+  position: relative;
+  background: transparent; /* reveals the fixed .stage-layer beneath */
+  min-height: 210vh;
+  padding: clamp(6rem, 12vh, 10rem) var(--edge) clamp(4rem, 10vh, 8rem);
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+}
+.stage-intro {
+  max-width: 34ch;
+  width: 100%;
+  margin: 0 auto;
+  max-width: min(34ch, var(--maxw));
+}
+.stage > * {
+  width: 100%;
+  max-width: var(--maxw);
+  margin-left: auto;
+  margin-right: auto;
+}
+.stage .section-title,
+.stage .eyebrow,
+.stage .section-lede {
+  text-shadow: 0 2px 30px rgba(4, 3, 3, 0.85);
+}
+.stage-caption {
+  margin: clamp(30vh, 42vh, 46vh) auto clamp(24vh, 34vh, 40vh);
+  max-width: 24ch;
+  text-align: center;
+  font-family: var(--serif-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.6rem);
+  line-height: 1.3;
+  color: var(--bone);
+  text-shadow: 0 2px 40px rgba(4, 3, 3, 0.9);
+}
+
+/* the programme insert — a framed "playbill card" where media mounts */
+.insert {
+  margin-top: auto;
+  align-self: center;
+  width: 100%;
+  max-width: 560px;
+}
+.insert-frame {
+  background: linear-gradient(180deg, rgba(20, 16, 14, 0.86), rgba(12, 10, 9, 0.9));
+  border: 1px solid rgba(201, 168, 106, 0.28);
+  border-radius: 3px;
+  padding: clamp(1.5rem, 3.4vw, 2.4rem);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(9px);
+}
+.insert-kicker {
+  margin: 0 0 1.3rem;
+  font-family: var(--serif-body);
+  font-size: 0.74rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-align: center;
+}
+.insert-kicker::before,
+.insert-kicker::after {
+  content: "—";
+  margin: 0 0.7em;
+  color: var(--bone-faint);
+}
+
+.programme-pieces {
+  list-style: none;
+  margin: 0 0 1.4rem;
+  padding: 0;
+  border-top: 1px solid var(--hair);
+}
+.piece {
+  border-bottom: 1px solid var(--hair);
+}
+.piece-btn {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.9rem 0.4rem;
+  color: var(--bone);
+  font: inherit;
+  transition: padding-left 0.5s cubic-bezier(0.16, 1, 0.3, 1), color 0.4s ease;
+}
+.piece-btn:hover,
+.piece-btn:focus-visible {
+  color: var(--gold);
+  padding-left: 0.9rem;
+  outline: none;
+}
+.piece-num {
+  font-family: var(--serif-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  color: var(--bone-faint);
+  min-width: 1.4em;
+}
+.piece-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.piece-title {
+  font-family: var(--serif-display);
+  font-weight: 500;
+  font-size: 1.24rem;
+  line-height: 1.1;
+}
+.piece-sub {
+  font-size: 0.84rem;
+  font-style: italic;
+  color: var(--bone-dim);
+}
+.piece.is-active .piece-btn {
+  color: var(--gold);
+}
+.piece.is-active .piece-num {
+  color: var(--gold);
+}
+
+.insert-stage {
+  border-top: 1px solid var(--hair);
+  padding-top: 1.3rem;
+}
+.insert-status {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  font-style: italic;
+  color: var(--bone-dim);
+  min-height: 1.4em;
+}
+.insert-status.is-loading {
+  color: var(--gold);
+}
+.media-slot {
+  min-height: 0;
+}
+.media-slot:not(:empty) {
+  margin-bottom: 1.2rem;
+}
+.media-slot audio {
+  width: 100%;
+  display: block;
+  filter: sepia(0.25) saturate(0.85) brightness(0.95);
+  border-radius: 6px;
+}
+.media-slot iframe {
+  display: block;
+  border-radius: 6px;
+  border: 1px solid var(--hair);
+}
+.insert-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+.ghost-btn {
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--serif-body);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.6rem 1.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.4s ease, color 0.4s ease, opacity 0.4s ease;
+}
+.ghost-btn:hover:not(:disabled),
+.ghost-btn:focus-visible:not(:disabled) {
+  background: var(--gold);
+  color: var(--noir);
+}
+.ghost-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.insert-hint {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--bone-faint);
+}
+
+/* ============================================================
+   THE PROGRAMME — projects as playbill movements
+   ============================================================ */
+.movements {
+  border-top: 1px solid var(--hair);
+}
+.movement {
+  display: grid;
+  grid-template-columns: minmax(2.6rem, 4rem) 1fr;
+  gap: clamp(1rem, 4vw, 3rem);
+  padding: clamp(2rem, 5vh, 3.4rem) 0;
+  border-bottom: 1px solid var(--hair);
+  align-items: baseline;
+  transition: background 0.5s ease;
+}
+.movement:hover {
+  background: linear-gradient(90deg, rgba(201, 168, 106, 0.05), transparent 70%);
+}
+.movement-numeral {
+  font-family: var(--serif-display);
+  font-weight: 400;
+  font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.4rem);
+  line-height: 1;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+.movement-title {
+  font-family: var(--serif-display);
+  font-weight: 500;
+  font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.6rem);
+  line-height: 1.08;
+  margin: 0 0 0.7rem;
+  color: var(--bone);
+}
+.movement-desc {
+  margin: 0 0 1.2rem;
+  max-width: 54ch;
+  color: var(--bone-dim);
+  font-size: 1.02rem;
+  line-height: 1.72;
+}
+.movement-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tag {
+  font-family: var(--serif-body);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+}
+
+/* ============================================================
+   INTERMISSION — hobbies
+   ============================================================ */
+.hobbies {
+  border-top: 1px solid var(--hair);
+}
+.hobby {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 2fr;
+  gap: clamp(1rem, 4vw, 3rem);
+  padding: clamp(1.8rem, 4.5vh, 2.8rem) 0;
+  border-bottom: 1px solid var(--hair);
+  align-items: baseline;
+}
+.hobby-title {
+  font-family: var(--serif-display);
+  font-weight: 500;
+  font-size: clamp(1.4rem, 1.1rem + 1.3vw, 2.1rem);
+  line-height: 1.1;
+  margin: 0;
+  color: var(--bone);
+}
+.hobby-desc {
+  margin: 0;
+  color: var(--bone-dim);
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+/* ============================================================
+   CURTAIN CALL — contact
+   ============================================================ */
+.curtain-call {
+  padding-bottom: clamp(6rem, 16vh, 12rem);
+}
+.links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--hair);
+}
+.link-row {
+  border-bottom: 1px solid var(--hair);
+}
+.link-row a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1.3rem, 3.6vh, 2.1rem) 0;
+  text-decoration: none;
+  color: var(--bone);
+  transition: color 0.4s ease, padding-left 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.link-row a:hover,
+.link-row a:focus-visible {
+  color: var(--gold);
+  padding-left: 0.9rem;
+}
+.link-label {
+  font-family: var(--serif-display);
+  font-weight: 500;
+  font-size: clamp(1.6rem, 1.1rem + 1.9vw, 2.6rem);
+  line-height: 1;
+}
+.link-handle {
+  font-size: 0.95rem;
+  color: var(--bone-dim);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.colophon {
+  margin-top: clamp(3rem, 8vh, 5rem);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--bone-faint);
+  letter-spacing: 0.03em;
+}
+
+/* ============================================================
+   Reveal baseline (only applied with JS active)
+   ============================================================ */
+.js [data-reveal],
+.js [data-hero] {
+  will-change: opacity, transform;
+}
+
+/* ============================================================
+   Reduced motion — a calm, non-jarring theatre
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-line,
+  .stage-layer.is-performing .spotlight {
+    animation: none;
+  }
+  .scroll-line {
+    opacity: 0.6;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ============================================================
+   Small screens
+   ============================================================ */
+@media (max-width: 720px) {
+  .movement {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+  .movement-numeral {
+    color: var(--gold);
+  }
+  .hobby {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+  .link-row a {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .chrome-note {
+    display: none;
+  }
+  .stage {
+    min-height: 200vh;
+  }
+  .stage-caption {
+    margin-top: 32vh;
+    margin-bottom: 26vh;
+  }
+}

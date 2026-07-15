@@ -1,0 +1,927 @@
+/* =========================================================================
+   Motion — style.css
+   A scroll spectacle rebuilt around one persistent WebGL atmospheric field
+   (scene3d.js) instead of a 2D canvas — a dusk-fog palette rooted in Elden
+   Ring's Sites of Grace (gold sigils, drifting embers, foggy ruin-dark)
+   without literally reskinning the game. Warm ivory serif type in Fraunces
+   (display) + Inter (UI), continuing what round 1 liked.
+   ========================================================================= */
+
+:root {
+  --bg-0: #0b0910;
+  --bg-1: #100d1b;
+  --ink: #f4efe6;
+  --ink-dim: #c7bfd2;
+  --muted: #8b83a0;
+  --line: rgba(244, 239, 230, 0.14);
+
+  --gold: #e7b878;
+  --gold-bright: #f3cf94;
+  --ash: #a8b0a8;
+  --sky: #a1d6ff;
+  --violet: #dca0ff;
+  --rose: #ff9e9e;
+
+  --maxw: 1180px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  line-height: 1.55;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+::selection {
+  background: var(--gold);
+  color: #17111b;
+}
+
+/* -------------------------------------------------------------------------
+   Persistent layers
+   ------------------------------------------------------------------------- */
+#field {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  display: block;
+}
+
+/* Torchlight reveal — active only over #projects (main.js toggles opacity
+   and moves --tx/--ty on pointermove). A single soft warm pool of light
+   that makes whatever's near the cursor read as gilded/lit. */
+#torch {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: soft-light;
+  background: radial-gradient(
+    420px 420px at var(--tx, 50%) var(--ty, 50%),
+    rgba(255, 224, 176, 0.9) 0%,
+    rgba(231, 184, 120, 0.35) 38%,
+    transparent 70%
+  );
+  transition: opacity 0.5s ease;
+  will-change: background;
+}
+
+#grain {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* -------------------------------------------------------------------------
+   Fixed 3D piano stage
+   ------------------------------------------------------------------------- */
+#piano-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+#piano-mount {
+  position: absolute;
+  inset: 0;
+}
+#piano-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 62%, transparent 40%, rgba(6, 5, 10, 0.72) 100%);
+}
+
+/* -------------------------------------------------------------------------
+   Progress rail
+   ------------------------------------------------------------------------- */
+#rail {
+  position: fixed;
+  top: 50%;
+  right: clamp(14px, 2.4vw, 34px);
+  transform: translateY(-50%);
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+#rail-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+#rail-list li {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+#rail-list li .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(244, 239, 230, 0.28);
+  transition: transform 0.4s var(--ease-out), background 0.4s ease;
+}
+#rail-list li .rlabel {
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 0.35s ease, transform 0.35s var(--ease-out), color 0.35s ease;
+}
+#rail-list li:hover .rlabel,
+#rail-list li.active .rlabel {
+  opacity: 1;
+  transform: translateX(0);
+}
+#rail-list li.active .dot {
+  background: var(--gold);
+  transform: scale(1.7);
+  box-shadow: 0 0 14px rgba(231, 184, 120, 0.7);
+}
+#rail-list li.active {
+  color: var(--ink);
+}
+@media (max-width: 720px) {
+  #rail-list li .rlabel {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Intro curtain
+   ------------------------------------------------------------------------- */
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+#intro .intro-sigil {
+  position: absolute;
+  width: min(50vw, 420px);
+  height: min(50vw, 420px);
+  opacity: 0;
+  transform: scale(0.82);
+  filter: drop-shadow(0 0 24px rgba(231, 184, 120, 0.55));
+}
+#intro .intro-sigil svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 0.6;
+}
+#intro .intro-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform: translate(-50%, -50%);
+}
+#intro .intro-word {
+  display: flex;
+  gap: clamp(6px, 1.4vw, 18px);
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(30px, 8vw, 92px);
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+#intro .intro-word span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.5em);
+}
+#intro.done {
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------
+   Layout scaffolding
+   ------------------------------------------------------------------------- */
+main {
+  position: relative;
+  z-index: 3;
+}
+.scene {
+  position: relative;
+  padding: clamp(90px, 12vh, 150px) clamp(20px, 5vw, 64px);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.wrap {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+
+/* Per-scene atmospheric overlays layered above the field canvas. */
+.scene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+#hero::before {
+  background:
+    radial-gradient(90% 70% at 50% 8%, rgba(231, 184, 120, 0.16), transparent 60%),
+    radial-gradient(120% 120% at 50% 50%, transparent 50%, rgba(9, 7, 14, 0.78) 100%);
+}
+#projects::before {
+  background:
+    linear-gradient(180deg, rgba(9, 7, 14, 0.6), rgba(14, 16, 14, 0.74)),
+    repeating-linear-gradient(90deg, rgba(168, 176, 168, 0.05) 0 1px, transparent 1px 88px),
+    repeating-linear-gradient(0deg, rgba(168, 176, 168, 0.05) 0 1px, transparent 1px 88px);
+}
+.piano-act::before {
+  background: radial-gradient(120% 100% at 50% 40%, transparent 30%, rgba(6, 5, 10, 0.55) 100%);
+}
+#hobbies::before {
+  background:
+    radial-gradient(80% 70% at 82% 16%, rgba(214, 156, 96, 0.2), transparent 58%),
+    radial-gradient(90% 80% at 12% 96%, rgba(180, 120, 74, 0.16), transparent 60%),
+    linear-gradient(180deg, rgba(20, 14, 10, 0.4), rgba(14, 9, 14, 0.6));
+}
+#contact::before {
+  background:
+    radial-gradient(70% 60% at 50% 30%, rgba(231, 184, 120, 0.16), transparent 62%),
+    linear-gradient(180deg, rgba(10, 8, 16, 0.5), rgba(7, 6, 12, 0.9));
+}
+
+/* -------------------------------------------------------------------------
+   Hero
+   ------------------------------------------------------------------------- */
+.hero-inner {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: clamp(18px, 3vw, 30px);
+}
+.hero-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(76px, 20vw, 300px);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  margin: 0 0 clamp(20px, 3vw, 34px);
+}
+.hero-title .ch {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+.hero-title .word {
+  display: inline-block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+.hero-tagline {
+  max-width: 34ch;
+  font-size: clamp(18px, 2.3vw, 26px);
+  font-weight: 300;
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+.hero-cue {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: clamp(40px, 7vh, 72px);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.hero-cue-track {
+  position: relative;
+  width: 46px;
+  height: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+.hero-cue-dot {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: var(--gold);
+  animation: cue 2.4s var(--ease-io) infinite;
+}
+@keyframes cue {
+  0% { transform: translateX(-12px); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateX(46px); opacity: 0; }
+}
+
+/* -------------------------------------------------------------------------
+   Section headers
+   ------------------------------------------------------------------------- */
+.section-head {
+  margin-bottom: clamp(38px, 6vw, 70px);
+  max-width: 40ch;
+}
+.section-head.compact {
+  margin-bottom: clamp(20px, 3vw, 34px);
+}
+.section-index {
+  display: inline-block;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  color: var(--ash);
+  margin-bottom: 18px;
+}
+.section-index.center {
+  display: block;
+  text-align: center;
+}
+.section-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(40px, 7vw, 88px);
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+.section-sub {
+  margin-top: 20px;
+  font-size: clamp(16px, 1.7vw, 20px);
+  font-weight: 300;
+  color: var(--ink-dim);
+  max-width: 46ch;
+}
+.on-dark .section-title,
+.on-dark .section-sub {
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.6);
+}
+
+.reveal {
+  opacity: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Projects — torchlit archive
+   ------------------------------------------------------------------------- */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(16px, 2vw, 26px);
+}
+@media (max-width: 860px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.project-card {
+  position: relative;
+  padding: clamp(24px, 3vw, 38px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  will-change: transform, opacity;
+  transition: transform 0.5s var(--ease-out), border-color 0.5s ease;
+}
+.project-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(231, 184, 120, 0.4);
+}
+.card-num {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13px;
+  color: var(--ash);
+  letter-spacing: 0.2em;
+}
+.card-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(24px, 2.6vw, 32px);
+  margin: 14px 0 16px;
+  line-height: 1.1;
+}
+.card-desc {
+  color: var(--ink-dim);
+  font-weight: 300;
+  font-size: 15.5px;
+  flex: 1;
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+.card-tags span {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.card-arrow {
+  margin-top: 22px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-arrow span {
+  transition: transform 0.4s var(--ease-out);
+}
+.project-card:hover .card-arrow span {
+  transform: translateX(6px);
+}
+
+/* -------------------------------------------------------------------------
+   Recital
+   ------------------------------------------------------------------------- */
+.recital-inner {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(80px, 11vh, 130px) 0 clamp(40px, 7vh, 80px);
+  pointer-events: none;
+}
+.recital-inner > * {
+  pointer-events: auto;
+}
+.recital-panel {
+  align-self: flex-end;
+  width: min(440px, 100%);
+  padding: clamp(18px, 2vw, 26px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(12, 10, 20, 0.62);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.song-btn {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.3s ease, background 0.3s ease, transform 0.3s var(--ease-out);
+}
+.song-btn:hover {
+  border-color: rgba(231, 184, 120, 0.5);
+  transform: translateX(4px);
+}
+.song-btn.active {
+  border-color: var(--gold);
+  background: linear-gradient(120deg, rgba(231, 184, 120, 0.14), transparent);
+}
+.song-btn .s-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+}
+.song-btn .s-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+.recital-body {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.now-playing {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+  min-height: 1.2em;
+}
+.media {
+  min-height: 0;
+}
+.media:not(:empty) {
+  margin-bottom: 14px;
+}
+.media audio {
+  width: 100%;
+  display: block;
+}
+.media iframe {
+  border: 0;
+  border-radius: 10px;
+  display: block;
+  width: 100%;
+}
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.t-btn {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: #17111b;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.3s var(--ease-out), opacity 0.3s ease;
+}
+.t-btn.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+.t-btn:hover {
+  transform: translateY(-2px);
+}
+.t-status {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+/* -------------------------------------------------------------------------
+   Cadenza (minigame) — rune-hit-lane re-skin
+   ------------------------------------------------------------------------- */
+.cadenza-inner {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(70px, 9vh, 110px) 0 clamp(30px, 5vh, 60px);
+  pointer-events: none;
+}
+.cadenza-inner > * {
+  pointer-events: auto;
+}
+.game-shell {
+  position: relative;
+  align-self: center;
+  width: min(560px, 100%);
+  aspect-ratio: 5 / 6;
+  max-height: 64vh;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 184, 120, 0.22);
+  background: linear-gradient(180deg, rgba(9, 7, 15, 0.82), rgba(7, 5, 12, 0.9));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 0 60px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+}
+#game {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.game-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.hud-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 66px;
+}
+.hud-num {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 26px;
+  line-height: 1;
+}
+.hud-lbl {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.game-verdict {
+  position: absolute;
+  top: 42%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(22px, 4vw, 34px);
+  pointer-events: none;
+  opacity: 0;
+}
+.game-start {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 14px 34px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: #17111b;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  z-index: 3;
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s ease;
+  box-shadow: 0 10px 40px rgba(231, 184, 120, 0.35);
+}
+.game-start:hover {
+  transform: translate(-50%, -50%) translateY(-3px);
+}
+.game-start.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.9);
+}
+.game-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.game-hint kbd {
+  display: inline-block;
+  margin: 0 2px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+/* -------------------------------------------------------------------------
+   Hobbies
+   ------------------------------------------------------------------------- */
+.hobby-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hobby-row {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  align-items: center;
+  gap: clamp(16px, 3vw, 40px);
+  padding: clamp(22px, 3.4vw, 40px) 0;
+  border-top: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+}
+.hobby-row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.hobby-row .h-index {
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--gold);
+  font-size: 15px;
+}
+.hobby-row .h-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(26px, 4vw, 46px);
+  line-height: 1.05;
+  transition: transform 0.5s var(--ease-out);
+}
+.hobby-row .h-desc {
+  color: var(--ink-dim);
+  font-weight: 300;
+  max-width: 32ch;
+  text-align: right;
+  font-size: 15px;
+}
+.hobby-row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(214, 156, 96, 0.1), transparent 60%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.6s var(--ease-out);
+}
+.hobby-row:hover::after {
+  transform: scaleX(1);
+}
+.hobby-row:hover .h-title {
+  transform: translateX(14px);
+}
+@media (max-width: 720px) {
+  .hobby-row {
+    grid-template-columns: 40px 1fr;
+  }
+  .hobby-row .h-desc {
+    grid-column: 1 / -1;
+    text-align: left;
+    margin-top: 6px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Contact — Site of Grace
+   ------------------------------------------------------------------------- */
+.contact-inner {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+}
+.grace-sigil {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(56vw, 520px);
+  height: min(56vw, 520px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.5;
+  filter: drop-shadow(0 0 30px rgba(231, 184, 120, 0.4));
+  z-index: -1;
+}
+.grace-sigil svg {
+  width: 100%;
+  height: 100%;
+}
+.grace-sigil .gs-ring {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 0.6;
+}
+.grace-sigil .gs-ring-inner {
+  opacity: 0.6;
+}
+.grace-sigil .gs-bar {
+  stroke: var(--gold);
+  stroke-width: 0.6;
+}
+.grace-sigil .gs-bar-h {
+  opacity: 0.7;
+}
+.contact-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(44px, 9vw, 118px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  margin: 22px 0 clamp(36px, 6vw, 60px);
+}
+.contact-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+.contact-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: clamp(14px, 2.5vw, 30px);
+  margin-bottom: clamp(40px, 8vw, 80px);
+}
+.contact-link {
+  position: relative;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(20px, 3vw, 30px);
+  color: var(--ink);
+  text-decoration: none;
+  padding-bottom: 6px;
+}
+.contact-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0.15);
+  transform-origin: left;
+  opacity: 0.4;
+  transition: transform 0.5s var(--ease-out), opacity 0.4s ease;
+}
+.contact-link:hover::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.signoff {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* -------------------------------------------------------------------------
+   Reduced motion
+   ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-cue-dot {
+    animation: none;
+  }
+  #torch {
+    display: none;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}

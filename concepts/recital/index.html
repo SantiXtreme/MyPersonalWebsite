@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Recital — an evening with Santiago: machine learning and the piano, staged as a concert in a small warm theatre."
+    />
+    <meta name="theme-color" content="#0c0a09" />
+    <title>Santiago — Recital</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Filmic warmth over everything, hand-built noise -->
+    <canvas id="grain" aria-hidden="true"></canvas>
+
+    <!-- Fixed stage: the 3D grand piano + its spotlight, floor glow, dust and vignette -->
+    <div class="stage-layer" id="stage-layer" aria-hidden="true">
+      <div class="piano-mount" id="piano-mount"></div>
+      <canvas id="dust"></canvas>
+      <div class="spotlight" id="spotlight"></div>
+      <div class="floor-glow" id="floor-glow"></div>
+      <div class="stage-vignette"></div>
+    </div>
+
+    <!-- The entrance: house lights, then a velvet curtain parting -->
+    <div class="houselights" id="houselights" aria-hidden="true"></div>
+    <div class="theatre-curtain" id="curtain" aria-hidden="true">
+      <div class="curtain-valance"></div>
+      <div class="curtain-panel curtain-left"></div>
+      <div class="curtain-panel curtain-right"></div>
+    </div>
+
+    <a class="skip-link" href="#programme">Skip to the programme</a>
+
+    <header class="chrome">
+      <span class="wordmark" data-wordmark>Santiago</span>
+      <span class="chrome-note" aria-hidden="true">A Recital — this evening</span>
+    </header>
+
+    <main id="main">
+      <!-- OVERTURE / hero -->
+      <section class="hero" id="overture">
+        <div class="hero-inner">
+          <p class="eyebrow hero-eyebrow" data-hero>The house lights dim</p>
+          <h1 class="name" data-name data-hero>Santiago</h1>
+          <p class="tagline" data-hero>
+            Machine learning, and the music between. Please, take your seat.
+          </p>
+        </div>
+        <a class="scroll-cue" href="#stage" data-hero aria-label="Begin, scroll down">
+          <span class="scroll-word">The curtain rises</span>
+          <span class="scroll-line" aria-hidden="true"></span>
+        </a>
+      </section>
+
+      <!-- THE STAGE — piano centerpiece + recital player -->
+      <section class="stage" id="stage">
+        <header class="stage-intro">
+          <p class="eyebrow" data-reveal>Act I — The Stage</p>
+          <h2 class="section-title" data-reveal>The instrument takes the light.</h2>
+          <p class="section-lede" id="piano-intro" data-reveal></p>
+        </header>
+
+        <p class="stage-caption" data-reveal>Three pieces. One evening. Choose where to begin.</p>
+
+        <div class="insert" id="insert" data-reveal>
+          <div class="insert-frame">
+            <p class="insert-kicker">Tonight's Recital</p>
+            <ul class="programme-pieces" id="pieces"></ul>
+            <div class="insert-stage">
+              <p class="insert-status" id="insert-status">Choose a piece to begin.</p>
+              <div class="media-slot" id="media-slot"></div>
+              <div class="insert-controls">
+                <button id="play-btn" class="ghost-btn" type="button" disabled>Play</button>
+                <span class="insert-hint" id="insert-hint">The piano answers each note in kind.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- THE PROGRAMME — ML projects as movements in a playbill -->
+      <section class="section programme" id="programme">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>Act II — The Programme</p>
+          <h2 class="section-title" data-reveal>Tonight's programme.</h2>
+          <p class="section-lede" data-reveal>
+            Selected works in machine learning, presented as this evening's movements.
+          </p>
+        </header>
+        <div class="movements" id="projects"></div>
+      </section>
+
+      <!-- INTERMISSION — hobbies -->
+      <section class="section intermission" id="intermission">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>Intermission</p>
+          <h2 class="section-title" data-reveal>Away from the keys.</h2>
+        </header>
+        <div class="hobbies" id="hobbies"></div>
+      </section>
+
+      <!-- CURTAIN CALL — contact -->
+      <section class="section curtain-call" id="contact">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>Curtain Call</p>
+          <h2 class="section-title" data-reveal>Take a bow — then say hello.</h2>
+        </header>
+        <ul class="links" id="links" data-reveal></ul>
+        <p class="colophon" data-reveal>
+          Recital — a theatre built from type, light, and a single grand piano.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

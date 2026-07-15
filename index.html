@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Santiago — Concepts</title>
+  <meta name="description" content="Two design concepts for Santiago's personal site." />
+  <meta name="theme-color" content="#08080b" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,400;0,600;1,500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #08080b;
+      --panel: #101014;
+      --line: #232329;
+      --text: #f2f1ee;
+      --dim: #8a8a92;
+      --accent: #e8c873;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--ink);
+      color: var(--text);
+      font-family: 'Manrope', system-ui, sans-serif;
+      min-height: 100svh;
+      padding: clamp(1.5rem, 5vw, 4rem);
+    }
+    header {
+      max-width: 1100px;
+      margin: 0 auto clamp(2.5rem, 6vw, 4.5rem);
+    }
+    .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 1rem;
+    }
+    h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 500;
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      line-height: 1.05;
+      margin: 0 0 1rem;
+      max-width: 18ch;
+    }
+    header p {
+      color: var(--dim);
+      font-size: clamp(1rem, 1.6vw, 1.15rem);
+      max-width: 62ch;
+      line-height: 1.6;
+    }
+    .grid {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    a.card {
+      position: relative;
+      background: var(--panel);
+      padding: clamp(2rem, 4vw, 3.2rem);
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-height: 320px;
+      overflow: hidden;
+      transition: background 0.3s ease;
+    }
+    a.card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--tint, transparent);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+    a.card:hover::before,
+    a.card:focus-visible::before { opacity: 0.14; }
+    a.card:hover, a.card:focus-visible { background: #16161b; }
+    .num {
+      font-family: 'Fraunces', serif;
+      font-size: 0.85rem;
+      color: var(--dim);
+      letter-spacing: 0.1em;
+    }
+    .card h2 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 500;
+      font-size: 2.1rem;
+      margin: 0;
+    }
+    .card .dek {
+      font-style: italic;
+      color: var(--accent);
+      font-family: 'Fraunces', serif;
+      font-size: 1rem;
+      margin: -0.6rem 0 0;
+    }
+    .card p {
+      color: var(--dim);
+      font-size: 0.98rem;
+      line-height: 1.6;
+      margin: 0;
+      flex: 1;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: auto;
+    }
+    .tags span {
+      font-size: 0.68rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--dim);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.2rem 0.6rem;
+    }
+    .arrow {
+      align-self: flex-end;
+      font-size: 1.6rem;
+      color: var(--accent);
+      transform: translate(0, 0);
+      transition: transform 0.25s ease;
+    }
+    a.card:hover .arrow { transform: translate(4px, -4px); }
+    footer {
+      max-width: 1100px;
+      margin: clamp(2.5rem, 6vw, 4rem) auto 0;
+      color: var(--dim);
+      font-size: 0.85rem;
+      line-height: 1.7;
+    }
+    footer a { color: var(--dim); }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Santiago — Concept Review, Round 2</p>
+    <h1>Two directions, built from what you liked.</h1>
+    <p>
+      Round 1's strongest bits — the cursor-reactive glow and cinematic intro
+      from Fog Gate, the smoothness and elegance of Atelier Noir — feed
+      straight into these two. Both now open on a real 3D grand piano you
+      can hear play one of three recital pieces. One is built entirely
+      around scroll spectacle and motion; the other is quieter and more
+      refined — walking into a theatre for a recital.
+    </p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="./concepts/motion/" style="--tint:#ff5da2">
+      <span class="num">01 — Motion</span>
+      <h2>Motion</h2>
+      <p class="dek">Scroll spectacle, drastic scene changes, a minigame — motion and visual quality are the whole point.</p>
+      <p>Fixes round 1's rough scroll and empty stretches: buttery Lenis-driven pacing, dramatic per-section transformations, and at least one polished interactive minigame, without sacrificing animation quality anywhere.</p>
+      <div class="tags"><span>Scroll-driven</span><span>3D Piano</span><span>Minigame</span></div>
+      <span class="arrow">↗</span>
+    </a>
+    <a class="card" href="./concepts/recital/" style="--tint:#c9a86a">
+      <span class="num">02 — Recital</span>
+      <h2>Recital</h2>
+      <p class="dek">Entering a theatre, taking a seat, watching a piano recital — refined, elegant, ML-aware.</p>
+      <p>Continues what worked best in Atelier Noir: restraint, smoothness, quality typography. The 3D grand piano sits centre-stage under a spotlight; ML projects are framed as the evening's programme.</p>
+      <div class="tags"><span>Theatre</span><span>3D Piano</span><span>Elegant</span></div>
+      <span class="arrow">↗</span>
+    </a>
+  </div>
+
+  <footer>
+    Round 1 (five concepts, including Atelier Noir) is preserved at
+    <a href="./archive/concepts-round-1/">/archive/concepts-round-1/</a>,
+    with your feedback on each recorded in that folder's README. The
+    original Elden Ring "Site of Grace" build is at
+    <a href="./archive/elden-grace-v1/">/archive/elden-grace-v1/</a>.
+  </footer>
+</body>
+</html>

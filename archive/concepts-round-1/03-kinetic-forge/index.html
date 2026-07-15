@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Santiago — Kinetic Forge</title>
+    <meta
+      name="description"
+      content="Santiago — ML engineer and pianist. A high-contrast, kinetic portfolio with a live WebGL wireframe terrain and a playable piano."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- scroll progress -->
+    <div class="scroll-progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+    <!-- live wireframe terrain (WebGL) -->
+    <canvas id="terrain" class="terrain" aria-hidden="true"></canvas>
+    <div class="terrain-vignette" aria-hidden="true"></div>
+
+    <!-- fixed navigation -->
+    <header class="nav" id="nav">
+      <a href="#top" class="nav__brand magnetic" data-strength="0.5">
+        <span class="nav__mark">S</span>
+        <span class="nav__word">SANTIAGO</span>
+      </a>
+      <nav class="nav__links" aria-label="Primary">
+        <a href="#work" class="nav__link magnetic">Work</a>
+        <a href="#piano" class="nav__link magnetic">Piano</a>
+        <a href="#play" class="nav__link magnetic">Off-hours</a>
+        <a href="#contact" class="nav__link nav__link--cta magnetic">Contact</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <!-- HERO -->
+      <section class="hero" id="hero">
+        <p class="hero__eyebrow"><span>PORTFOLIO</span><span class="dot">/</span><span>ML · MUSIC · MOTION</span></p>
+        <div class="hero__titlewrap">
+          <h1 class="hero__title" data-title>SANTIAGO</h1>
+          <span class="hero__echo" aria-hidden="true" data-echo>SANTIAGO</span>
+        </div>
+        <p class="hero__sub">
+          ML&nbsp;Engineer <span class="slash">/</span> Pianist — forging models
+          &amp; melodies.
+        </p>
+        <div class="hero__cta">
+          <a href="#work" class="btn magnetic">View the work</a>
+          <a href="#piano" class="btn btn--ghost magnetic">Play the piano</a>
+        </div>
+        <div class="hero__scroll" aria-hidden="true">
+          <span>SCROLL</span><i></i>
+        </div>
+      </section>
+
+      <!-- DATA TICKER -->
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker__track" id="tickerTrack"></div>
+      </div>
+
+      <!-- WORK -->
+      <section class="section section--work" id="work">
+        <div class="section__head reveal">
+          <span class="section__index">01</span>
+          <h2 class="section__title">Selected&nbsp;Work</h2>
+          <p class="section__lead">
+            Machine-learning systems, shipped and in progress. Placeholders for
+            now — the real write-ups are being forged.
+          </p>
+        </div>
+        <ol class="projects" id="projects"></ol>
+      </section>
+
+      <!-- PIANO -->
+      <section class="section section--piano" id="piano">
+        <div class="section__head reveal">
+          <span class="section__index">02</span>
+          <h2 class="section__title">The&nbsp;Instrument</h2>
+          <p class="section__lead" id="pianoIntro"></p>
+        </div>
+
+        <div class="piano reveal" id="pianoStage">
+          <div class="piano__bar">
+            <div class="piano__hint">
+              Click the keys, or use your keyboard:
+              <kbd>A</kbd><kbd>W</kbd><kbd>S</kbd><kbd>E</kbd><kbd>D</kbd>
+              <kbd>F</kbd><kbd>T</kbd><kbd>G</kbd><kbd>Y</kbd><kbd>H</kbd>
+              <kbd>U</kbd><kbd>J</kbd><kbd>K</kbd>
+            </div>
+            <button type="button" class="btn btn--small magnetic" id="liebestraumBtn">
+              <span class="dotpulse" aria-hidden="true"></span>
+              <span id="liebestraumLabel">Hear it played</span>
+            </button>
+          </div>
+          <div class="piano__scroll">
+            <div class="keybed" id="keybed" role="group" aria-label="Playable piano keyboard">
+              <div class="keybed__felt" aria-hidden="true"></div>
+              <div class="keys keys--white" id="whiteKeys"></div>
+              <div class="keys keys--black" id="blackKeys"></div>
+            </div>
+          </div>
+          <p class="piano__now" id="pianoNow" aria-live="polite">—</p>
+        </div>
+      </section>
+
+      <!-- HOBBIES -->
+      <section class="section section--play" id="play">
+        <div class="section__head reveal">
+          <span class="section__index">03</span>
+          <h2 class="section__title">Off-hours</h2>
+          <p class="section__lead">What happens when the models are training.</p>
+        </div>
+        <div class="hobbies" id="hobbies"></div>
+      </section>
+
+      <!-- CONTACT -->
+      <section class="section section--contact" id="contact">
+        <span class="section__index">04</span>
+        <h2 class="contact__title reveal">LET'S&nbsp;BUILD<br />SOMETHING&nbsp;LOUD.</h2>
+        <ul class="contact__links" id="contactLinks"></ul>
+        <p class="contact__foot reveal">
+          <span>© <span id="year"></span> Santiago</span>
+          <span>Kinetic Forge — concept 03</span>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

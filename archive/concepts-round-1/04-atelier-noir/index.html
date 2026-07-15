@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Atelier Noir — an atmospheric portfolio for Santiago: machine learning, piano, and the fog in between."
+    />
+    <title>Santiago — Atelier Noir</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Atmospheric scene: hand-built drifting fog over a pine treeline -->
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <!-- Cinematic film-grain overlay across the whole viewport -->
+    <canvas id="grain" aria-hidden="true"></canvas>
+
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="chrome">
+      <span class="wordmark" data-wordmark>Santiago</span>
+      <button
+        id="sound-toggle"
+        class="sound-toggle"
+        type="button"
+        aria-pressed="false"
+        aria-label="Enable ambient sound"
+      >
+        <span class="sound-bars" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
+        </span>
+        <span class="sound-label">Ambient</span>
+      </button>
+    </header>
+
+    <main id="main">
+      <!-- HERO -->
+      <section class="hero" id="hero">
+        <div class="hero-inner">
+          <p class="eyebrow hero-eyebrow" data-hero>An atelier in the dark</p>
+          <h1 class="name" data-name data-hero>Santiago</h1>
+          <p class="tagline" data-hero>
+            Teaching machines to listen &mdash; and a piano to answer back.
+          </p>
+        </div>
+        <a class="explore" href="#work" data-hero aria-label="Explore, scroll down">
+          <span class="explore-word">Explore</span>
+          <span class="explore-line" aria-hidden="true"></span>
+        </a>
+      </section>
+
+      <!-- WORK -->
+      <section class="section" id="work">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>01 &mdash; Work</p>
+          <h2 class="section-title" data-reveal>Things made in the quiet.</h2>
+        </header>
+        <div class="cards" id="projects"></div>
+      </section>
+
+      <!-- PIANO -->
+      <section class="section" id="instrument">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>02 &mdash; The instrument</p>
+          <h2 class="section-title" data-reveal>One more object in the room.</h2>
+          <p class="section-lede" id="piano-intro" data-reveal></p>
+        </header>
+
+        <div class="piano-shell" data-reveal>
+          <div class="piano-scroll">
+            <div class="keyboard" id="keyboard" role="group" aria-label="Playable piano keyboard"></div>
+          </div>
+          <div class="piano-controls">
+            <button id="demo-btn" class="ghost-btn" type="button">
+              Play a phrase
+            </button>
+            <span class="piano-hint">Click a key, or use your keyboard.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOBBIES -->
+      <section class="section" id="elsewhere">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>03 &mdash; Elsewhere</p>
+          <h2 class="section-title" data-reveal>Away from the screen.</h2>
+        </header>
+        <div class="hobbies" id="hobbies"></div>
+      </section>
+
+      <!-- CONTACT -->
+      <section class="section contact" id="contact">
+        <header class="section-head">
+          <p class="eyebrow" data-reveal>04 &mdash; Say hello</p>
+          <h2 class="section-title" data-reveal>Find me in the fog.</h2>
+        </header>
+        <ul class="links" id="links" data-reveal></ul>
+        <p class="colophon" data-reveal>
+          Atelier Noir &mdash; hand-built fog, grain, and a small synthesized piano.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+/* Loaded last so it wins the cascade for any final breakpoint tweaks that
+   don't belong to one specific component file. Most per-component
+   responsive rules live beside their component (scene.css, intro.css,
+   menu.css, panel.css, sections.css). */
+
+@media (max-width: 480px) {
+  .title-name {
+    letter-spacing: 0.08em;
+  }
+  .loading-inner {
+    max-width: 90vw;
+  }
+  .hud {
+    top: var(--space-4);
+    right: var(--space-4);
+  }
+  .nameplate {
+    top: var(--space-4);
+    left: var(--space-4);
+  }
+  .rune-counter span {
+    min-width: 1ch;
+  }
+}
+
+@media (max-height: 620px) {
+  #hero {
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-6);
+  }
+  .title-lockup {
+    margin-top: var(--space-5);
+  }
+  .grace-plot {
+    margin-top: var(--space-5);
+  }
+  .scroll-hint {
+    margin-top: var(--space-5);
+  }
+}
+
+@media (pointer: coarse) {
+  .scroll-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .grace-banner {
+    letter-spacing: 0.22em;
+    top: 6vh;
+  }
+  .menu-footer span:first-child {
+    display: none; /* arrow-key hint is meaningless on touch */
+  }
+  .panel-kbd-hint {
+    display: none; /* the fixed HUD sits in this same top-right corner */
+  }
+}

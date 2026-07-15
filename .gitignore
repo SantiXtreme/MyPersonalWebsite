@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Local mood-reference screenshots — never shipped, see CLAUDE.md
+design-reference/

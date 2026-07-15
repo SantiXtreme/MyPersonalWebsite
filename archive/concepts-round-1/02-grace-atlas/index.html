@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Santiago — Grace Atlas</title>
+    <meta
+      name="description"
+      content="Santiago — an interactive constellation map of works, music and wanderings across the Lands Between."
+    />
+    <!-- Inline grace-glyph favicon keeps the console clean (no 404) -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 160'%3E%3Cg fill='none' stroke='%23f0cf8e' stroke-width='7'%3E%3Ccircle cx='50' cy='50' r='28'/%3E%3Cline x1='50' y1='8' x2='50' y2='152'/%3E%3Cline x1='20' y1='44' x2='80' y2='44'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Hidden SVG sprite: the crescent-and-cross "grace" glyph, reused by every waypoint -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="grace-glyph" viewBox="0 0 100 160">
+        <g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round">
+          <circle cx="50" cy="50" r="28" />
+          <line x1="50" y1="6" x2="50" y2="154" />
+          <line x1="19" y1="44" x2="81" y2="44" />
+        </g>
+      </symbol>
+    </svg>
+
+    <!-- Persistent atmospheric map background -->
+    <canvas id="map-canvas" aria-hidden="true"></canvas>
+
+    <!-- Vignette + film grain overlays -->
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <!-- Route lines traced between waypoints -->
+    <svg id="routes" class="routes" aria-hidden="true" preserveAspectRatio="none"></svg>
+
+    <!-- The waypoint layer (buttons injected by JS) -->
+    <nav id="waypoints" class="waypoints" aria-label="Grace waypoints — travel to a section of the atlas"></nav>
+
+    <!-- Top wordmark -->
+    <header class="wordmark" aria-hidden="false">
+      <span class="wordmark__crest" aria-hidden="true">
+        <svg viewBox="0 0 100 160"><use href="#grace-glyph" /></svg>
+      </span>
+      <span class="wordmark__text">Grace&nbsp;·&nbsp;Atlas</span>
+    </header>
+
+    <!-- Return-to-map control (shown while a panel is open) -->
+    <button id="return-btn" class="return-btn" type="button" hidden>
+      <span aria-hidden="true">◇</span> Return to the map
+    </button>
+
+    <!-- Overview hint -->
+    <p id="hint" class="hint" aria-hidden="true">Select a grace to travel</p>
+
+    <!-- Intro overlay -->
+    <div id="intro" class="intro">
+      <div class="intro__inner">
+        <p class="intro__eyebrow">The Lands Between</p>
+        <h1 class="intro__title">Santiago</h1>
+        <p class="intro__tagline">
+          A cartographer of models and music. Each grace below marks a place worth
+          wandering to — choose one to begin your journey.
+        </p>
+        <button id="begin-btn" class="intro__btn" type="button">Enter the atlas</button>
+      </div>
+    </div>
+
+    <!-- Content panels injected by JS -->
+    <div id="panels" class="panels"></div>
+
+    <!-- Screen-reader announcements -->
+    <div id="announce" class="sr-only" role="status" aria-live="polite"></div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
