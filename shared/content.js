@@ -11,13 +11,12 @@ export const person = {
   // TODO(santiago): the line that runs under your name on the hero. Placeholder
   // draft below — swap for your own whenever you're ready (you mentioned you'd
   // give me one).
-  tagline: 'Chasing the quiet logic underneath music, motion, and the game.',
+  tagline: 'Chasing the quiet logic underneath music, numbers, and the game.',
   photo: null, // TODO(santiago): path to a hero photo, e.g. './assets/photo-hero.jpg'
 };
 
 // About section — brief self-introduction, right after the hero.
-export const aboutIntro =
-  "TODO(santiago): a short paragraph introducing yourself — who you are outside of the five areas below, in your own words.";
+export const aboutIntro = "Hi, I'm Santiago. This website is a combination of all the key areas in my life, enjoy!";
 
 // The five "key areas" driving the About section's nav and each one's hero.
 export const keyAreas = [

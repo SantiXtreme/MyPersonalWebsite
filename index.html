@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Santiago — Off the hours</title>
-    <meta name="description" content="Santiago — machine learning, math and physics, volleyball, piano, and reading, in motion." />
+    <meta name="description" content="Santiago — machine learning, math and physics, volleyball, piano, and reading." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -14,15 +14,6 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <!-- Cinematic intro curtain — the word is built from person.name in main.js -->
-    <div id="intro" aria-hidden="true">
-      <div class="intro-sigil" aria-hidden="true">
-        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" /><line x1="50" y1="4" x2="50" y2="96" /></svg>
-      </div>
-      <div class="intro-line"></div>
-      <div class="intro-word" id="intro-word"></div>
-    </div>
-
     <!-- Persistent atmospheric field: one Three.js particle system, palette
          morphs per section. See scene3d.js. -->
     <canvas id="field"></canvas>
@@ -44,7 +35,7 @@
       <section id="hero" class="scene" data-scene="hero" data-label="Intro">
         <div class="hero-inner">
           <div class="hero-text">
-            <p class="eyebrow reveal-intro">A personal site, in motion</p>
+            <p class="eyebrow reveal-intro">A personal site</p>
             <h1 class="hero-title" id="hero-title">Santiago</h1>
             <p class="hero-tagline reveal-intro" id="hero-tagline"></p>
             <div class="hero-cue reveal-intro" aria-hidden="true">
@@ -91,7 +82,7 @@
             <span class="section-index">03</span>
             <h2 class="section-title">Math &amp; physics</h2>
             <p class="section-sub" id="mathphysics-intro">
-              Momentum conserved, energy conserved — the collision above is computed live, not scripted.
+              Real gravity, computed live — the orbits above aren't scripted, they're simulated frame by frame.
             </p>
           </header>
         </div>
@@ -176,7 +167,7 @@
             <em><span class="ct-line" id="ct-line2">something move.</span></em>
           </h2>
           <div class="contact-links" id="contact-links"></div>
-          <p class="signoff"><span id="signoff-name">Santiago</span> — built in motion, 2026</p>
+          <p class="signoff"><span id="signoff-name">Santiago</span> — 2026</p>
         </div>
       </section>
     </main>

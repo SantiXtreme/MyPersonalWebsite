@@ -5,7 +5,10 @@
 // approach is fine here since it's just representing "this is a hobby," not
 // claiming the footage). Muted/autoplay, starts at 5:28 and loops back to
 // 5:28 (not 0:00) on end, styled full-bleed via CSS with pointer-events:none
-// so it reads as scenery, not a video player.
+// so it reads as scenery, not a video player. `mount()` is deferred until
+// the section is actually scrolled into view, so autoplay:1 here doesn't
+// waste bandwidth playing off-screen — it just means there's no visible
+// paused/thumbnail flash before playback starts once it does mount.
 //
 // Usage:
 //   const bg = createEldenRingBackground(containerEl);
@@ -35,7 +38,7 @@ export function createEldenRingBackground(container) {
         videoId: VIDEO_ID,
         playerVars: {
           start: START_S,
-          autoplay: 0,
+          autoplay: 1,
           mute: 1,
           controls: 0,
           disablekb: 1,

@@ -16,8 +16,16 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 
 const LAYER_SIZES = [4, 6, 7, 6, 3];
-const COLOR_IN = [122, 178, 255]; // cool blue — matches the site's ML/math palette
-const COLOR_OUT = [200, 226, 255];
+// A multi-hue sweep across the net's layers (input → output), reusing the
+// site's own established accents (--blue-accent/--sky/--violet/--gold/
+// --rose) rather than a single blue gradient — more alive, still cohesive.
+const PALETTE = [
+  [111, 163, 255],
+  [122, 178, 255],
+  [220, 160, 255],
+  [231, 184, 120],
+  [255, 158, 158],
+];
 
 export function createNeuralNet(canvas, options = {}) {
   const ctx = canvas.getContext('2d');
@@ -67,10 +75,16 @@ export function createNeuralNet(canvas, options = {}) {
   resize();
 
   function mixColor(t) {
+    const n = PALETTE.length - 1;
+    const seg = clamp(t, 0, 1) * n;
+    const i = Math.min(Math.floor(seg), n - 1);
+    const localT = seg - i;
+    const a = PALETTE[i];
+    const b = PALETTE[i + 1];
     return [
-      Math.round(lerp(COLOR_IN[0], COLOR_OUT[0], t)),
-      Math.round(lerp(COLOR_IN[1], COLOR_OUT[1], t)),
-      Math.round(lerp(COLOR_IN[2], COLOR_OUT[2], t)),
+      Math.round(lerp(a[0], b[0], localT)),
+      Math.round(lerp(a[1], b[1], localT)),
+      Math.round(lerp(a[2], b[2], localT)),
     ];
   }
 

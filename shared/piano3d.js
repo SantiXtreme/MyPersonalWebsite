@@ -39,15 +39,18 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // Two named camera anchors shared by every concept's choreography (dolly-in,
 // camera-fly, etc.) so tuning the shot only ever happens in one place instead
 // of being copy-pasted per concept.
+//
+// 'hero' and 'stage' are deliberately wide, concert-hall-distance shots —
+// user feedback on an earlier close-up framing was that the piano's
+// procedural geometry reads as visually confusing up close ("the keys and
+// the black part are in the wrong order"); pulled back to a small piano on
+// a lit stage (see buildBackdrop() below), that same geometry just reads as
+// "a shiny grand piano," which is all a background element needs to do.
+// 'keys' stays closer for when a song is actually playing.
 export const CAMERA_PRESETS = {
-  // The classic "grand piano" 3/4 shot, angled down into the open lid so the
-  // gold plate/strings read clearly rather than being a distant sliver.
-  hero: { pos: [4.35, 3.05, -0.5], look: [0.75, 0.68, 1.35] },
-  // Close-up on the keyboard — reuses the SAME viewing direction as hero,
-  // just closer (two independently-guessed angles never lined up right).
-  keys: { pos: [2.35, 1.72, -0.72], look: [0.8, 0.74, 0.05] },
-  // Hero pulled back further, for a wide "whole stage" establishing shot.
-  stage: { pos: [5.9, 3.7, -0.7], look: [0.75, 0.68, 1.35] },
+  hero: { pos: [10.5, 5.2, -5.4], look: [0.8, 0.7, 1.4] },
+  keys: { pos: [2.6, 1.85, -0.8], look: [0.78, 0.74, 0.05] },
+  stage: { pos: [16, 7.4, -8.2], look: [0.8, 0.7, 1.5] },
 };
 
 function buildBodyShape() {
@@ -166,6 +169,78 @@ function makeEnvironment(renderer) {
   return envMap;
 }
 
+// Warm wood-paneled concert-hall backdrop — visible geometry (not just
+// environment lighting) so the now-much-wider default camera framing (see
+// CAMERA_PRESETS) has an actual stage around the piano instead of void.
+// Flat panels only, no external textures: a back wall, an angled "ceiling"
+// sweeping down toward it, a few horizontal band accents for paneling, and
+// two angled wings for a soft proscenium.
+function buildBackdrop() {
+  const group = new THREE.Group();
+
+  // The piano's own light rig (below) is tuned for close-range illumination
+  // of the instrument, not a 20+-unit-wide hall — so these carry their own
+  // `emissive` glow rather than depending on scene lights to reach them.
+  // Keeps them reading as "warm lit wood" without needing to re-tune the
+  // whole rig's falloff distances around the (already-dialed-in) piano.
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x5a3a24,
+    roughness: 0.85,
+    side: THREE.DoubleSide,
+    emissive: 0x5a3a24,
+    emissiveIntensity: 0.5,
+  });
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(26, 11), wallMat);
+  wall.position.set(2, 5, 10.5);
+  wall.receiveShadow = true;
+  group.add(wall);
+
+  const ceilMat = new THREE.MeshStandardMaterial({
+    color: 0x6d4a2e,
+    roughness: 0.8,
+    side: THREE.DoubleSide,
+    emissive: 0x6d4a2e,
+    emissiveIntensity: 0.68,
+  });
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(24, 15), ceilMat);
+  ceiling.position.set(2, 9.8, 2);
+  ceiling.rotation.x = THREE.MathUtils.degToRad(58);
+  group.add(ceiling);
+
+  [0x63412a, 0x4d3220, 0x6d4930, 0x563723].forEach((c, i) => {
+    const band = new THREE.Mesh(
+      new THREE.PlaneGeometry(26, 0.5),
+      new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: 0.75,
+        side: THREE.DoubleSide,
+        emissive: c,
+        emissiveIntensity: 0.5,
+      })
+    );
+    band.position.set(2, 1.4 + i * 2.2, 10.4);
+    group.add(band);
+  });
+
+  const wingMat = new THREE.MeshStandardMaterial({
+    color: 0x261c15,
+    roughness: 0.9,
+    side: THREE.DoubleSide,
+    emissive: 0x261c15,
+    emissiveIntensity: 0.3,
+  });
+  const wingL = new THREE.Mesh(new THREE.PlaneGeometry(11, 11), wingMat);
+  wingL.position.set(-7.5, 5, 4);
+  wingL.rotation.y = THREE.MathUtils.degToRad(35);
+  group.add(wingL);
+  const wingR = new THREE.Mesh(new THREE.PlaneGeometry(11, 11), wingMat.clone());
+  wingR.position.set(11.5, 5, 4);
+  wingR.rotation.y = THREE.MathUtils.degToRad(-35);
+  group.add(wingR);
+
+  return group;
+}
+
 export function createGrandPiano3D(container, options = {}) {
   const {
     cameraPreset = 'hero', // 'hero' | 'keys' | 'stage'
@@ -198,6 +273,8 @@ export function createGrandPiano3D(container, options = {}) {
 
   const envMap = makeEnvironment(renderer);
   scene.environment = envMap;
+
+  scene.add(buildBackdrop());
 
   // ---- materials ----
   // DoubleSide on the extruded-shape materials: the extrude's winding
@@ -508,7 +585,10 @@ export function createGrandPiano3D(container, options = {}) {
   let reflector = null;
   let shadowCatcher = null;
   if (floor) {
-    const floorGeo = new THREE.CircleGeometry(4.5, 64);
+    // Radius grown to match the much wider default camera framing (see
+    // CAMERA_PRESETS) — at the old close-up distance 4.5 filled the frame
+    // fine, but the new wide stage shot showed its edge.
+    const floorGeo = new THREE.CircleGeometry(11, 64);
     reflector = new Reflector(floorGeo, {
       textureWidth: 768,
       textureHeight: 768,
@@ -549,6 +629,13 @@ export function createGrandPiano3D(container, options = {}) {
   const hemi = new THREE.HemisphereLight(0x445066, 0x0a0a0c, 0.4);
   scene.add(hemi);
 
+  // A colored spotlight from directly above, off by default — driven by
+  // setMood() below, one color per recital piece (see main.js).
+  const moodLight = new THREE.SpotLight(0xb98cff, 0, 15, Math.PI / 5, 0.4, 1.2);
+  moodLight.position.set(0.8, 9, 1.4);
+  moodLight.target.position.set(0.8, 0.62, 1.4);
+  scene.add(moodLight, moodLight.target);
+
   // ---- resize handling ----
   function resize() {
     const w = container.clientWidth || 1;
@@ -587,6 +674,22 @@ export function createGrandPiano3D(container, options = {}) {
       .to(mesh.rotation, { x: 0, duration: holdTime, ease: 'power2.out' });
   }
 
+  // Overhead colored spotlight, one hue per recital piece (see main.js) —
+  // fades out, swaps color, fades back in, so the change reads as a
+  // theater lighting cue rather than a hard color-pop mid-transition.
+  function setMood(hexColor, targetIntensity = 34, duration = 1.4) {
+    gsap.killTweensOf(moodLight);
+    if (hexColor == null) {
+      gsap.to(moodLight, { intensity: 0, duration: duration * 0.6, ease: 'power2.in' });
+      return;
+    }
+    gsap
+      .timeline()
+      .to(moodLight, { intensity: 0, duration: duration * 0.35, ease: 'power2.in' })
+      .call(() => moodLight.color.set(hexColor))
+      .to(moodLight, { intensity: targetIntensity, duration: duration * 0.65, ease: 'power2.out' });
+  }
+
   function flyTo(presetName, duration = 1.6) {
     const p = CAMERA_PRESETS[presetName];
     if (!p) return;
@@ -612,5 +715,5 @@ export function createGrandPiano3D(container, options = {}) {
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
   }
 
-  return { pressKey, flyTo, resize, dispose, scene, camera, renderer, root };
+  return { pressKey, flyTo, setMood, resize, dispose, scene, camera, renderer, root };
 }

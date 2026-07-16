@@ -40,7 +40,7 @@ import { createGrandPiano3D, CAMERA_PRESETS } from './shared/piano3d.js';
 import { createRecitalPlayer, SONGS } from './shared/recital.js';
 import { createMotionField } from './scene3d.js';
 import { createNeuralNet } from './sections/neuralNet.js';
-import { createCollisionDemo } from './sections/collision.js';
+import { createOrbitalDemo } from './sections/orbits.js';
 import { createFloatingEquations } from './sections/equations.js';
 import { createVolleyballPlayer } from './sections/volleyballPlayer.js';
 import { createEldenRingBackground } from './sections/eldenRingBg.js';
@@ -185,7 +185,8 @@ function scrollToSection(selector) {
 }
 
 /* =========================================================================
-   4 · CINEMATIC INTRO + KINETIC HERO TYPE
+   4 · KINETIC HERO TYPE — no separate curtain; "Santiago" is on-screen
+   immediately and animates directly into place on load.
    ========================================================================= */
 function splitChars(el) {
   const text = el.textContent;
@@ -204,15 +205,6 @@ function splitChars(el) {
   return $$('.ch', el);
 }
 
-// Intro curtain word — built from person.name so it never drifts out of
-// sync with the actual site owner's name.
-const introWordEl = $('#intro-word');
-for (const ch of person.name.toUpperCase()) {
-  const s = document.createElement('span');
-  s.textContent = ch;
-  introWordEl.appendChild(s);
-}
-
 const heroChars = splitChars($('#hero-title'));
 const contactChars = [...splitChars($('#ct-line1')), ...splitChars($('#ct-line2'))];
 reactiveCloud.registerLetters([...heroChars, ...contactChars]);
@@ -225,45 +217,21 @@ function runIntro() {
   if (introRan) return;
   introRan = true;
   if (REDUCED) {
-    $('#intro').style.display = 'none';
     gsap.set(heroChars, { yPercent: 0, opacity: 1 });
     gsap.set('.reveal-intro', { opacity: 1, y: 0 });
     return;
   }
-  lenis && lenis.stop();
-  const tl = gsap.timeline({
-    onComplete: () => {
-      $('#intro').classList.add('done');
-      lenis && lenis.start();
-    },
-  });
-  tl.to('#intro .intro-sigil', { opacity: 0.85, scale: 1, duration: 1.0, ease: 'power2.out' }, 0)
-    .to('#intro .intro-word span', {
-      opacity: 1,
+  gsap
+    .timeline()
+    .to(heroChars, {
       yPercent: 0,
-      duration: 0.7,
-      ease: 'power3.out',
+      opacity: 1,
+      duration: 1.1,
+      ease: 'power4.out',
       stagger: 0.06,
-      startAt: { yPercent: 60 },
-    }, 0.15)
-    .fromTo('#intro .intro-line', { width: 0 }, { width: '46%', duration: 0.7, ease: 'power2.inOut' }, '-=0.2')
-    .to('#intro .intro-sigil', { opacity: 0, scale: 1.4, duration: 0.6, ease: 'power2.in' }, '-=0.3')
-    .to('#intro .intro-word span', { yPercent: -120, opacity: 0, duration: 0.5, ease: 'power2.in', stagger: 0.03 }, '+=0.25')
-    .to('#intro', { yPercent: -100, duration: 0.9, ease: 'power4.inOut' }, '-=0.15')
-    .set('#intro', { display: 'none' })
-    .to(
-      heroChars,
-      {
-        yPercent: 0,
-        opacity: 1,
-        duration: 1.1,
-        ease: 'power4.out',
-        stagger: 0.06,
-        startAt: { filter: 'blur(14px)' },
-        filter: 'blur(0px)',
-      },
-      '-=0.55'
-    )
+      startAt: { filter: 'blur(14px)' },
+      filter: 'blur(0px)',
+    })
     .to('.reveal-intro', { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out', stagger: 0.12 }, '-=0.7');
 }
 
@@ -359,9 +327,9 @@ ScrollTrigger.create({
 });
 
 /* =========================================================================
-   7 · MATH & PHYSICS — live elastic collision + floating equations
+   7 · MATH & PHYSICS — live gravitational orbits + floating equations
    ========================================================================= */
-const collisionDemo = createCollisionDemo($('#collision-canvas'));
+const orbitalDemo = createOrbitalDemo($('#collision-canvas'));
 const mathEquations = createFloatingEquations($('#mathphysics-eq-wrap'), { density: 'dense', opacity: 0.4 });
 const aboutEquations = createFloatingEquations($('#about-canvas-wrap'), { density: 'sparse', opacity: 0.22 });
 mathEquations.bindScroll(ScrollTrigger, '#math-physics');
@@ -372,19 +340,19 @@ ScrollTrigger.create({
   start: 'top 70%',
   end: 'bottom 30%',
   onEnter: () => {
-    collisionDemo.activate();
+    orbitalDemo.activate();
     mathEquations.activate();
   },
   onEnterBack: () => {
-    collisionDemo.activate();
+    orbitalDemo.activate();
     mathEquations.activate();
   },
   onLeave: () => {
-    collisionDemo.deactivate();
+    orbitalDemo.deactivate();
     mathEquations.deactivate();
   },
   onLeaveBack: () => {
-    collisionDemo.deactivate();
+    orbitalDemo.deactivate();
     mathEquations.deactivate();
   },
 });
@@ -445,6 +413,18 @@ const piano = createGrandPiano3D(pianoMount, {
   bodyColor: 0x120f1e,
   floorColor: 0x0d1013,
 });
+
+// Overhead spotlight color per recital piece — a dreamy purple for
+// Liebestraum, a semi-dark green for Experience, a Gojo-esque limitless
+// blue for the JJK OST. Deliberately separate from PERFORMANCE_PROFILES'
+// colors in shared/recital.js (those drive the finer-grained per-note key
+// glow/accent-light/particle-burst reactivity and are tuned for that job).
+const MOOD_COLORS = {
+  liebestraum: 0xb98cff,
+  experience: 0x2f6b46,
+  ifiamwithyou: 0x3d7dff,
+  default: 0xc9a86a,
+};
 
 const accentLight = new THREE.PointLight(0xe7b878, 0, 7, 2);
 accentLight.position.set(0.7, 1.5, 1.6);
@@ -535,9 +515,11 @@ const player = createRecitalPlayer({
       if (s.playing) {
         piano.flyTo('keys', 1.6);
         setExposure(0.85);
+        piano.setMood(MOOD_COLORS[s.songId] ?? MOOD_COLORS.default);
       } else {
         piano.flyTo('hero', 1.4);
         setExposure(lerp(0.62, 1.08, dollyProgress));
+        piano.setMood(null);
       }
     }
   },

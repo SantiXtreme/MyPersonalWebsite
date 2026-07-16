@@ -43,13 +43,17 @@ const SCENES = {
     cursorForce: 'trail',
     density: 1,
   },
+  // Warm violet/rose — deliberately distinct from the hero's cool blues
+  // right above it, and from the gold that dominates later sections.
   about: {
     mode: 'ash',
-    a: [120, 150, 200],
-    b: [210, 225, 255],
+    a: [190, 140, 210],
+    b: [255, 190, 190],
     drift: [4, 6],
     turbulence: 0.5,
-    cursorForce: 'stir',
+    // Cursor reactivity is intentionally hero/contact-only — see the note
+    // on the 'contact' entry below.
+    cursorForce: 'none',
     density: 0.6,
   },
   ml: {
@@ -67,7 +71,7 @@ const SCENES = {
     b: [180, 200, 255],
     drift: [0, -4],
     turbulence: 0.4,
-    cursorForce: 'stir',
+    cursorForce: 'none',
     density: 0.45,
   },
   volleyball: {
@@ -76,7 +80,7 @@ const SCENES = {
     b: [160, 200, 255],
     drift: [10, 14],
     turbulence: 0.6,
-    cursorForce: 'scatter',
+    cursorForce: 'none',
     density: 0.35, // kept sparse — the clip background is the main visual
   },
   recital: {
@@ -85,7 +89,7 @@ const SCENES = {
     b: [255, 232, 196],
     drift: [0, -6],
     turbulence: 0.35,
-    cursorForce: 'stir',
+    cursorForce: 'none',
     density: 0.6,
   },
   reading: {
@@ -94,7 +98,7 @@ const SCENES = {
     b: [180, 130, 80],
     drift: [6, 14],
     turbulence: 0.5,
-    cursorForce: 'stir',
+    cursorForce: 'none',
     density: 0.55,
   },
   hobbies: {
@@ -103,7 +107,9 @@ const SCENES = {
     b: [180, 120, 74],
     drift: [14, 26],
     turbulence: 0.9,
-    cursorForce: 'scatter',
+    // Cursor reactivity is hero/contact-only now — it was interrupting the
+    // Elden Ring video background here.
+    cursorForce: 'none',
     density: 0.5, // kept lower — the Elden Ring video is the main visual
   },
   // Same colors as before, per the user's request to keep the ending
