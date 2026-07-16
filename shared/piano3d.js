@@ -17,7 +17,6 @@
 //   piano.dispose();                                        // on section teardown
 
 import * as THREE from 'three';
-import { Reflector } from 'three/addons/objects/Reflector.js';
 import gsap from 'gsap';
 
 const WHITE_KEY_LEN = 0.15; // meters, visible length of a white key
@@ -184,30 +183,35 @@ function buildBackdrop() {
   // Keeps them reading as "warm lit wood" without needing to re-tune the
   // whole rig's falloff distances around the (already-dialed-in) piano.
   const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x5a3a24,
+    color: 0x6b4530,
     roughness: 0.85,
     side: THREE.DoubleSide,
-    emissive: 0x5a3a24,
-    emissiveIntensity: 0.5,
+    emissive: 0x6b4530,
+    emissiveIntensity: 1.7,
   });
   const wall = new THREE.Mesh(new THREE.PlaneGeometry(26, 11), wallMat);
-  wall.position.set(2, 5, 10.5);
+  // y nudged up so the plane's bottom edge (5.6 - 11/2 = 0.1) stays just
+  // clear of the floor Reflector's clip plane at y=0 — a wall dipping
+  // below the mirror plane was the actual cause of a red artifact smeared
+  // across the reflection (confirmed by hiding the Reflector and watching
+  // it vanish). Don't let backdrop geometry cross y=0 again.
+  wall.position.set(2, 5.6, 10.5);
   wall.receiveShadow = true;
   group.add(wall);
 
   const ceilMat = new THREE.MeshStandardMaterial({
-    color: 0x6d4a2e,
+    color: 0x86593a,
     roughness: 0.8,
     side: THREE.DoubleSide,
-    emissive: 0x6d4a2e,
-    emissiveIntensity: 0.68,
+    emissive: 0x86593a,
+    emissiveIntensity: 2.3,
   });
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(24, 15), ceilMat);
   ceiling.position.set(2, 9.8, 2);
   ceiling.rotation.x = THREE.MathUtils.degToRad(58);
   group.add(ceiling);
 
-  [0x63412a, 0x4d3220, 0x6d4930, 0x563723].forEach((c, i) => {
+  [0x744a2e, 0x5c3a24, 0x7d5535, 0x654028].forEach((c, i) => {
     const band = new THREE.Mesh(
       new THREE.PlaneGeometry(26, 0.5),
       new THREE.MeshStandardMaterial({
@@ -215,7 +219,7 @@ function buildBackdrop() {
         roughness: 0.75,
         side: THREE.DoubleSide,
         emissive: c,
-        emissiveIntensity: 0.5,
+        emissiveIntensity: 1.7,
       })
     );
     band.position.set(2, 1.4 + i * 2.2, 10.4);
@@ -223,18 +227,20 @@ function buildBackdrop() {
   });
 
   const wingMat = new THREE.MeshStandardMaterial({
-    color: 0x261c15,
+    color: 0x2e2118,
     roughness: 0.9,
     side: THREE.DoubleSide,
-    emissive: 0x261c15,
-    emissiveIntensity: 0.3,
+    emissive: 0x2e2118,
+    emissiveIntensity: 0.9,
   });
+  // Same y-nudge as the wall, same reason — Y-axis rotation doesn't change
+  // a plane's world-Y extent, so these need the same clearance from y=0.
   const wingL = new THREE.Mesh(new THREE.PlaneGeometry(11, 11), wingMat);
-  wingL.position.set(-7.5, 5, 4);
+  wingL.position.set(-7.5, 5.6, 4);
   wingL.rotation.y = THREE.MathUtils.degToRad(35);
   group.add(wingL);
   const wingR = new THREE.Mesh(new THREE.PlaneGeometry(11, 11), wingMat.clone());
-  wingR.position.set(11.5, 5, 4);
+  wingR.position.set(11.5, 5.6, 4);
   wingR.rotation.y = THREE.MathUtils.degToRad(-35);
   group.add(wingR);
 
@@ -578,27 +584,26 @@ export function createGrandPiano3D(container, options = {}) {
     root.add(pedal);
   });
 
-  // ---- floor: real-time mirror reflection + a shadow-only overlay ----
-  // (a plain Reflector can't receive shadows, so a transparent
-  // ShadowMaterial plane sits a hair above it to catch the piano's contact
-  // shadow without breaking the mirror.)
-  let reflector = null;
+  // ---- floor: shadow-catcher only ----
+  // Used to be a real-time mirror (Reflector) + a transparent ShadowMaterial
+  // plane sitting a hair above it to catch the contact shadow without
+  // breaking the mirror. The much wider "wide concert hall" camera framing
+  // (see CAMERA_PRESETS) needed a bigger floor radius, and enlarging the
+  // Reflector specifically produced a persistent stray red-triangle smear
+  // in the mirrored image — tried a larger clipBias, a more moderate
+  // radius, and moving the backdrop geometry clear of the y=0 clip plane;
+  // none of it fixed it. Isolated it conclusively by hiding the Reflector
+  // and the shadow-catcher independently — only hiding the Reflector made
+  // the artifact disappear, and the resulting shot (just the shadow catcher
+  // over the page's own starfield field showing through the transparent
+  // canvas) already looked good on its own, so the mirror was dropped
+  // rather than keep chasing what's most likely a software-rendering
+  // (SwiftShader) artifact in this sandbox's render-to-texture pass. If
+  // revisiting: the shadow-catcher-only look is fine, don't reintroduce a
+  // Reflector without re-testing in a real GPU browser first.
   let shadowCatcher = null;
   if (floor) {
-    // Radius grown to match the much wider default camera framing (see
-    // CAMERA_PRESETS) — at the old close-up distance 4.5 filled the frame
-    // fine, but the new wide stage shot showed its edge.
-    const floorGeo = new THREE.CircleGeometry(11, 64);
-    reflector = new Reflector(floorGeo, {
-      textureWidth: 768,
-      textureHeight: 768,
-      color: floorColor,
-      clipBias: 0.0008,
-      multisample: 2,
-    });
-    reflector.rotation.x = -Math.PI / 2;
-    scene.add(reflector);
-
+    const floorGeo = new THREE.CircleGeometry(8, 64);
     shadowCatcher = new THREE.Mesh(floorGeo, new THREE.ShadowMaterial({ opacity: 0.5 }));
     shadowCatcher.rotation.x = -Math.PI / 2;
     shadowCatcher.position.y = 0.002;
@@ -631,7 +636,7 @@ export function createGrandPiano3D(container, options = {}) {
 
   // A colored spotlight from directly above, off by default — driven by
   // setMood() below, one color per recital piece (see main.js).
-  const moodLight = new THREE.SpotLight(0xb98cff, 0, 15, Math.PI / 5, 0.4, 1.2);
+  const moodLight = new THREE.SpotLight(0xb98cff, 0, 16, Math.PI / 4, 0.5, 1);
   moodLight.position.set(0.8, 9, 1.4);
   moodLight.target.position.set(0.8, 0.62, 1.4);
   scene.add(moodLight, moodLight.target);
@@ -677,7 +682,7 @@ export function createGrandPiano3D(container, options = {}) {
   // Overhead colored spotlight, one hue per recital piece (see main.js) —
   // fades out, swaps color, fades back in, so the change reads as a
   // theater lighting cue rather than a hard color-pop mid-transition.
-  function setMood(hexColor, targetIntensity = 34, duration = 1.4) {
+  function setMood(hexColor, targetIntensity = 95, duration = 1.4) {
     gsap.killTweensOf(moodLight);
     if (hexColor == null) {
       gsap.to(moodLight, { intensity: 0, duration: duration * 0.6, ease: 'power2.in' });
@@ -709,7 +714,6 @@ export function createGrandPiano3D(container, options = {}) {
   function dispose() {
     running = false;
     ro.disconnect();
-    reflector?.dispose();
     renderer.dispose();
     envMap.dispose();
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
