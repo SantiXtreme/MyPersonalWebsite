@@ -225,8 +225,14 @@ main {
   pointer-events: none;
 }
 #hero::before {
+  /* A layered nebula rather than one flat glow — several soft blue/indigo
+     blooms at different positions and sizes, evoking real deep-sky nebula
+     photography without pulling in a new color family (still the site's
+     blue identity, just richer). */
   background:
     radial-gradient(90% 70% at 50% 8%, rgba(111, 163, 255, 0.18), transparent 60%),
+    radial-gradient(55% 45% at 14% 62%, rgba(80, 140, 255, 0.12), transparent 65%),
+    radial-gradient(45% 40% at 88% 22%, rgba(150, 120, 255, 0.1), transparent 68%),
     radial-gradient(120% 120% at 50% 50%, transparent 50%, rgba(6, 9, 20, 0.82) 100%);
 }
 #projects::before {
@@ -901,10 +907,13 @@ main {
 }
 #about::before {
   /* Deliberately warm (violet/rose) against the hero's cool blues right
-     above it — contrast, not a repeat. No green/radioactive tones. */
+     above it — contrast, not a repeat. No green/radioactive tones. Same
+     "layered nebula" treatment as hero (a third soft bloom, warm amber
+     this time) so both read as cosmic/spacelike without being identical. */
   background:
     radial-gradient(85% 65% at 50% 0%, rgba(220, 160, 255, 0.14), transparent 62%),
     radial-gradient(70% 60% at 85% 90%, rgba(255, 158, 158, 0.1), transparent 65%),
+    radial-gradient(50% 40% at 10% 30%, rgba(255, 190, 140, 0.08), transparent 66%),
     radial-gradient(120% 120% at 50% 50%, transparent 40%, rgba(19, 10, 24, 0.82) 100%);
 }
 .key-area-grid {
