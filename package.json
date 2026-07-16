@@ -1,8 +1,8 @@
 {
-  "name": "santiago-concepts",
+  "name": "santiago-personal-site",
   "private": true,
   "version": "1.0.0",
-  "description": "Santiago — five competing design concepts for the personal site.",
+  "description": "Santiago — personal site, \"Off the hours.\"",
   "type": "module",
   "scripts": {
     "dev": "vite",

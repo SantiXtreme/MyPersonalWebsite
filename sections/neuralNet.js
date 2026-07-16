@@ -37,7 +37,9 @@ export function createNeuralNet(canvas, options = {}) {
     layers = LAYER_SIZES.map((count, li) => {
       const x = W * (0.1 + (li / (LAYER_SIZES.length - 1)) * 0.8);
       const nodes = Array.from({ length: count }, (_, i) => {
-        const y = H * (0.5 + (i - (count - 1) / 2) * (0.62 / Math.max(count - 1, 1)));
+        // Biased toward the upper third — the project cards below cover
+        // enough of the canvas that a 50%-centered net was mostly hidden.
+        const y = H * (0.36 + (i - (count - 1) / 2) * (0.46 / Math.max(count - 1, 1)));
         return { x, y, baseY: y, phase: Math.random() * Math.PI * 2, r: 3.2 + Math.random() * 1.6, li };
       });
       return { x, nodes };
@@ -98,7 +100,7 @@ export function createNeuralNet(canvas, options = {}) {
       const revealB = clamp(builtIn * layers.length - e.b.li, 0, 1);
       const reveal = Math.min(revealA, revealB);
       if (reveal <= 0) continue;
-      ctx.strokeStyle = `rgba(140,180,255,${0.07 * reveal})`;
+      ctx.strokeStyle = `rgba(140,180,255,${0.16 * reveal})`;
       ctx.beginPath();
       ctx.moveTo(e.a.x, e.a.y);
       ctx.lineTo(e.b.x, e.b.y);

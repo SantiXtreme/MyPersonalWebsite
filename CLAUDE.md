@@ -1,96 +1,149 @@
-# Santiago — Concept Review, Round 2
+# Santiago — "Off the hours" (personal site)
 
-This repo is in a **design exploration phase**. Round 1 built five full
-concepts and the user reviewed all five with specific feedback (recorded in
-`archive/concepts-round-1/README.md` — read it before touching round 2,
-it's the actual brief). Round 2 is two new concepts built directly from
-that feedback, replacing round 1 as the active work:
+This is Santiago's actual personal site, not a concept demo. It went
+through three phases: a single Elden Ring "Site of Grace" build, then five
+parallel concepts reviewed side by side (round 1), then two finalist
+concepts sharing a 3D piano (round 2 — `motion` vs `recital`). The user
+picked **motion** as the winner; it was promoted to the project root and
+expanded into a full site per a detailed brief. `archive/` and `concepts/`
+from earlier phases were deleted outright (not kept around) once the
+decision was made, so this is now a single-concept codebase.
 
-- **`concepts/motion/`** — a full WebGL scroll spectacle, rebuilt a second
-  time after the user reviewed the first pass: Elden-Ring-rooted atmosphere
-  (golden Site-of-Grace sigils, foggy ruin-dusk palette, drifting embers)
-  reimagined as an original portfolio piece rather than a literal reskin,
-  with genuinely spectacular and *section-distinct* mouse reactivity and at
-  least one polished minigame (Cadenza).
-- **`concepts/recital/`** — refined elegance: "entering a theatre for a
-  piano recital," continuing what worked in round 1's Atelier Noir
-  (smoothness, restrained quality over motion density), with ML projects
-  framed inside the theatre metaphor (e.g. as "the programme"). Reviewed
-  after round 2's first pass and confirmed good apart from the piano
-  (fixed by the shared rebuild below) and the curtain entrance (fixed —
-  see `concepts/recital/NOTES.md`); everything else in it is untouched.
-
-Both open on a **real 3D grand piano** (`shared/piano3d.js`, Three.js) that
-can play one of three recital pieces via `shared/recital.js`, replacing
-round 1's flat clickable-key widget entirely. Each piece has its own
-"reactive personality" (color/sustain/velocity/timing — see
-`PERFORMANCE_PROFILES` in `recital.js`) so the piano visibly reacts
-differently depending on what's playing, on both sites.
+The most concrete taste signal this project has ever gotten — from the
+round-1 side-by-side review, no longer on disk but still the standing
+brief — remains: **liked** cursor reactivity, a cinematic intro, smooth
+restrained scroll, clean serif type; **disliked** rough/jarring scroll,
+visually-thin sections, "punky" bold styling, visual overwhelm. Keep
+applying it to any new section or visual change.
 
 ## Structure
 
 ```
-index.html                 Root gallery — 2 cards linking to concepts/motion/ and concepts/recital/
-vite.config.js               Multi-page config; registers index.html + both concepts as build entries
+index.html            One scroll page — 9 sections (hero, about, machine-learning,
+                       math-physics, volleyball, recital, reading, hobbies, contact).
+main.js                 Entry point: Lenis smooth scroll + GSAP ScrollTrigger scene
+                       system, cinematic intro, per-section wiring (numbered blocks
+                       0–13 in the file, e.g. "6 · MACHINE LEARNING", "11 · THE 3D
+                       PIANO STAGE"). Import content from shared/content.js — never
+                       inline real-world facts here.
+scene3d.js               Persistent Three.js GPU particle field (embers/ash/dust/leaf
+                       depending on the active section, via `SCENES`) + UnrealBloomPass.
+                       One system for the whole page, not per-section canvases — a
+                       section's `cursorForce` (trail/stir/scatter/gather/none) is how
+                       it gets a distinct feel without bolting on a new mechanism.
+style.css                All styling. Notable shared patterns: `.scene::before` per-
+                       section atmospheric gradient overlays, `.on-dark` text-shadow
+                       treatment for text over busy/bright backgrounds, `.section-canvas-bg`
+                       for the 2D-canvas section hero backgrounds (neuralNet.js/collision.js).
+sections/
+  neuralNet.js            Machine Learning hero background — a small flowing neural net
+                         (Canvas 2D, layered nodes + traveling signal pulses). Biased
+                         toward the section's upper third so it doesn't sit entirely
+                         behind the opaque `.project-grid` cards below it.
+  collision.js              Math & Physics hero background — two blocks doing a real
+                         (computed, not scripted) elastic collision, momentum/KE readouts.
+  equations.js              Floating DOM equation glyphs with scroll-linked parallax,
+                         reused sparse (About) and dense (Math & Physics).
+  volleyballPlayer.js        The user's own two clips (`assets/volleyball/`), crossfading
+                         back-to-back and looping via two stacked `<video>` elements.
+  eldenRingBg.js             Hobbies background — a real YouTube embed ("The Beauty of
+                         ELDEN RING", starts/loops at 5:28), via `loadYouTubeAPI` from
+                         shared/recital.js. Never rip/rehost — always the live embed.
+  books.js                 Reading hero — a small shelf of book spines that drops in
+                         and settles once, GSAP, no canvas.
+  reactiveLetters.js         The cursor-reactive "glow cloud" used on the hero title and
+                         reused verbatim on contact's "Let's make something move." —
+                         splits text into per-character spans (`splitChars()` in
+                         main.js) and lights up letters near the pointer. Space
+                         characters get a non-breaking space, not a literal space —
+                         a plain space inside a `display: inline-block` span collapses
+                         to zero width under normal whitespace rules and silently eats
+                         the gap between words. Don't "simplify" that back to `ch`.
 shared/
-  content.js                  SINGLE SOURCE OF TRUTH for real content (name/projects/hobbies/links). Still TODO(santiago) placeholders — don't invent specifics.
-  piano3d.js                   The 3D grand piano — procedural Three.js geometry (concert-grand silhouette, propped lid over a modeled interior — gold cast-iron plate with hand-hole cutouts, strings fanning bass-to-treble, warm soundboard — 88 individually-animatable keys, legs, pedals). Glossy PBR lacquer via a small custom "studio" PMREM environment (a few bright panels against a mostly-dark room, NOT three.js's stock RoomEnvironment — that lights the whole room from ~6 directions at once, which washes a near-black clearcoat to flat grey instead of reading as glossy black with crisp highlights) + ACESFilmicToneMapping. Floor is a real-time mirror (`three/addons/objects/Reflector.js`) tinted per-concept via the `floorColor` option, with a `ShadowMaterial` overlay so it still catches a contact shadow. Deliberately does NOT render any manufacturer wordmark/logo (trademark). Exports `CAMERA_PRESETS` (`hero`/`keys`/`stage`) so both concepts read camera numbers from one place instead of duplicating them — retune here, not per-concept. `pressKey(midi, {velocity, sustain})` animates one key (sustain stretches how long it visually stays down — driven by the active recital piece's profile, see below); `flyTo(presetName, duration)` tweens the camera between presets.
-  recital.js                   Three-song player: `SONGS` (Liebestraum No.3 = local file, Einaudi "Experience" = YouTube embed, "If I Am With You" (Jujutsu Kaisen S2 OST) = SoundCloud embed) + `createRecitalPlayer({ mediaContainer, onNote, onStateChange })`. The local file gets REAL audio-reactive key triggering (WebAudio AnalyserNode reading actual frequency bands); YouTube/SoundCloud get a generative "performance" pattern (cross-origin embeds give no access to their audio samples — documented in the file, this was a deliberate, user-confirmed tradeoff, not a shortcut to hide). `PERFORMANCE_PROFILES` (keyed by song id) gives each piece a distinct color/sustain/velocity-range/timing — threaded through `onNote(midi, opts)`'s `opts.color`/`opts.sustain` so every consumer (piano key hold time, accent lights, particle burst colors) reacts differently per piece without each concept re-implementing anything.
-  audio/liebestraum-no3.mp3    The user's own file, played locally — never rip/rehost YouTube or SoundCloud audio to "complete the set," always use their official embeds for those two.
-  liebestraum.js                Leftover from round 1 (the note-accurate Liebestraum transcription + rubato scheduler) — piano3d/recital.js don't use it (the local recording is played as real audio, not resynthesized), but it's harmless to keep for reference or a future synthesized-fallback need.
-  pianoEngine.js                Round 1's WebAudio synth-piano engine. Not used by round 2 (round 2 plays real recordings), kept only in case a future concept wants synthesized playback again.
-concepts/
-  motion/                       index.html + main.js + style.css + scene3d.js + NOTES.md. `scene3d.js` is the persistent atmospheric field — ONE Three.js GPU particle system (embers/ash/dust/leaves depending on the active scene, via `SCENES` in that file) + `UnrealBloomPass`, replacing the old 2D canvas flow-field. Cursor reactivity is spectacular and distinct per section but stays one cohesive system: the field's per-scene `cursorForce` (trail/stir/scatter/gather/none) covers hero/piano-act/hobbies/contact, plus two lightweight DOM-only touches where a discrete effect fit better — a torchlight cursor reveal over `#projects` (`#torch` in the CSS) and a rune "grace sigil" that trails the cursor on `#contact` with an elastic lag. Cadenza (the falling-notes minigame) keeps its original mechanics, re-skinned to the gold/rune palette and driving `field.burst()` on hits.
-  recital/                      index.html + main.js + style.css + NOTES.md
-archive/
-  concepts-round-1/              All five round-1 concepts, preserved, with the user's per-concept feedback in README.md — READ THIS before designing anything new, it's the most concrete signal available about taste (liked: cursor reactivity, cinematic intro animation, smooth restrained scroll, clean serif type; disliked: rough/jarring scroll, visually-thin sections, "punky" bold styling, visual overwhelm).
-  elden-grace-v1/                 The original single-concept Elden Ring "Site of Grace" build, further back in the project's history.
+  content.js                  SINGLE SOURCE OF TRUTH for real content (name, tagline,
+                       projects, hobbies, links, volleyball stats, books, piano intro).
+                       Still full of `TODO(santiago)` placeholders — the user has
+                       repeatedly deferred providing specifics; leave them as
+                       placeholders and never invent real names/links/achievements.
+  piano3d.js                   The 3D grand piano — procedural Three.js geometry
+                       (concert-grand silhouette, propped lid over a modeled interior:
+                       gold cast-iron plate, fanned strings, warm soundboard, tufted-
+                       leather bench, brass lid-edge trim and leg hardware), 88
+                       individually-animatable keys. Glossy PBR lacquer via a small
+                       custom "studio" PMREM environment (NOT three.js's stock
+                       RoomEnvironment — that washes a near-black clearcoat to flat
+                       grey) + ACESFilmicToneMapping. Floor is a real-time mirror
+                       (`Reflector.js`) with a `ShadowMaterial` contact-shadow overlay.
+                       Deliberately no manufacturer wordmark (trademark). Exports
+                       `CAMERA_PRESETS` (`hero`/`keys`/`stage`) — retune camera numbers
+                       here, not in main.js. `pressKey(midi, {velocity, sustain})`
+                       animates one key; `flyTo(presetName, duration)` tweens the camera.
+  recital.js                   Three-song player: `SONGS` (Liebestraum No. 3 = local
+                       file with real WebAudio-analyser audio-reactive key triggering;
+                       Einaudi "Experience" = YouTube embed; "If I Am With You"
+                       (Jujutsu Kaisen S2 OST) = SoundCloud embed — both cross-origin
+                       embeds get a generative "performance" pattern instead of real
+                       audio-reactivity, since there's no sample access across origins;
+                       documented in-file, a deliberate user-confirmed tradeoff).
+                       `createRecitalPlayer({ mediaContainer, onNote, onStateChange })`.
+                       `PERFORMANCE_PROFILES` (keyed by song id) gives each piece a
+                       distinct color/sustain/velocity/timing feel, threaded through
+                       `onNote(midi, opts)` so every consumer (piano key hold time,
+                       accent lights, particle burst colors) reacts differently per
+                       piece. `onStateChange` drives the piano camera: flies to `keys`
+                       on play, back to `hero` on pause — see main.js block 12.
+  audio/liebestraum-no3.mp3    The user's own recording, played locally as real audio
+                       (not resynthesized) — never rip/rehost the YouTube/SoundCloud
+                       songs to "complete the set," always their official embeds.
+design-reference/            User-supplied original reference images (gitignored, not
+                       tracked). Mixed vintage: `GRANDPIANO.jpeg` is still a live
+                       modeling reference cited by name in piano3d.js — don't touch it.
+                       Several other files are leftover Elden Ring mood-board images
+                       the user called "kinda obsolete now" but are their own supplied
+                       originals — flag before deleting, don't do it silently.
 ```
 
 ## Ground rules
 
 - **No fabricated personal facts.** All real content comes from
-  `shared/content.js` (still full of `TODO(santiago)` placeholders — leave
-  them as placeholders, the user has repeatedly deferred filling these in).
-- **Never rip or rehost YouTube/SoundCloud audio.** Always their official
-  embeds (`shared/recital.js` already does this correctly) — this is both a
-  ToS matter and just the right way to do it.
-- **The two concepts share `piano3d.js`/`recital.js`/`content.js` and
-  nothing else.** Keep each concept's scroll/motion/visual system
-  independent — that's the point of building two.
-- **Respect `prefers-reduced-motion`** in both — these are animation-heavy
-  by design and need a real fallback, not just a token check.
-- **Verify in a real browser before calling either concept done** — WebGL,
-  ScrollTrigger, and the audio embeds are all easy to get subtly wrong
-  (silently-black canvas, a trigger that never fires, a z-index that
-  swallows clicks). Screenshot it, don't just read the code back. `three`
-  and `playwright` are both root dependencies already.
+  `shared/content.js` (full of `TODO(santiago)` placeholders) — leave them
+  as placeholders, the user has repeatedly deferred filling these in.
+- **Never rip or rehost YouTube/SoundCloud audio or video.** Always their
+  official embeds (`shared/recital.js`, `sections/eldenRingBg.js`) — a ToS
+  matter and just the right way to do it.
+- **Respect `prefers-reduced-motion`** everywhere — every animation module
+  in `sections/` checks a `REDUCED` flag and gives a real settled-state
+  fallback, not just a token check. Keep that pattern for anything new.
+- **Verify in a real browser before calling anything done** — WebGL,
+  ScrollTrigger, and the audio/video embeds are all easy to get subtly
+  wrong (silently-black canvas, a trigger that never fires, a z-index that
+  swallows clicks, a whitespace-collapsing bug that eats a space between
+  words). Screenshot it, don't just read the code back. `three` and
+  `playwright` are both root dependencies already.
 - **This sandbox's WebGL renders in software (SwiftShader)** — a single
-  screenshot of either concept's piano/particle scenes can take up to ~25s,
-  and GSAP tweens/ScrollTrigger scrubs triggered right as the page is doing
-  heavy synchronous setup (constructing the piano, baking its PMREM
-  environment) can appear to "jump" to completion almost instantly in this
-  environment specifically — that's this sandbox's frame timing, not a bug.
-  Prefer checking final/settled state and constructed values (camera
-  position, DOM classes) over trying to catch an exact mid-animation frame.
-- See `.claude/skills/round-2-concepts/SKILL.md` for the established
-  patterns in this round — adding a scroll scene to `concepts/motion/`,
-  adding/adjusting a recital piece's performance profile, and where the
-  shared piano's material/geometry/floor knobs live.
+  screenshot of the piano/particle scenes can take up to ~25s, and GSAP
+  tweens/ScrollTrigger scrubs triggered right as the page is doing heavy
+  synchronous setup can appear to "jump" to completion almost instantly —
+  that's this sandbox's frame timing, not a bug. Prefer checking final/
+  settled state (camera position, DOM classes, computed styles, an
+  `innerText` check for text content) over trying to catch an exact
+  mid-animation frame. Also: a plain Playwright `locator.click()` on
+  elements near the piano/particle scenes can time out on actionability/
+  stability checks here even when the element genuinely isn't moving —
+  prefer `page.evaluate(() => el.click())` for those specifically.
+- **This sandbox cannot reach `youtube.com`** (confirmed via `curl` — a
+  sandbox network restriction, not an app bug; `google.com` and most other
+  hosts work fine). That means the hobbies section's Elden Ring background
+  and the recital's Einaudi "Experience" song can't be visually verified
+  here — `loadYouTubeAPI()` just hangs with no network path. Don't chase
+  that as a bug in this environment; note it as unverifiable and move on.
+  The local Liebestraum song has no such dependency and should be the one
+  you actually click through end-to-end when testing the recital player.
 
 ## Commands
 
 ```bash
 npm install        # first time only — if this hangs with a cert error, see the env-npm-tls-fix memory (NODE_OPTIONS=--use-system-ca)
-npm run dev         # dev server; root gallery at /, concepts at /concepts/motion/ and /concepts/recital/
-npm run build        # builds every registered entry in vite.config.js
+npm run dev         # dev server (single entry, port 5173)
+npm run build        # production build
 ```
-
-## After a concept is chosen
-
-Promote that concept's files to the project root (mirroring how
-`archive/elden-grace-v1/` was created from the original root build), update
-`vite.config.js` back to a single-entry config, move the other concept (and
-`archive/concepts-round-1/` if the user doesn't want it kept around) into
-storage, and replace this file with a CLAUDE.md describing just the winning
-concept's architecture.

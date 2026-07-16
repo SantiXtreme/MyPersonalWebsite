@@ -291,7 +291,12 @@ main {
     repeating-linear-gradient(0deg, rgba(168, 176, 168, 0.05) 0 1px, transparent 1px 88px);
 }
 .piano-act::before {
-  background: radial-gradient(120% 100% at 50% 40%, transparent 30%, rgba(6, 5, 10, 0.55) 100%);
+  /* The intro copy sits over the piano's bright gold soundboard/strings —
+     a left-biased pool on top of the usual vignette keeps it legible
+     without a hard scrim box. */
+  background:
+    radial-gradient(38% 70% at 20% 40%, rgba(6, 5, 10, 0.7) 0%, rgba(6, 5, 10, 0.28) 55%, transparent 82%),
+    radial-gradient(120% 100% at 50% 40%, transparent 30%, rgba(6, 5, 10, 0.55) 100%);
 }
 #hobbies::before {
   background:

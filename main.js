@@ -195,7 +195,9 @@ function splitChars(el) {
   for (const ch of text) {
     const s = document.createElement('span');
     s.className = 'ch';
-    s.textContent = ch;
+    // A space-only display:inline-block span collapses to zero width under
+    // normal whitespace rules — use a non-breaking space so gaps survive.
+    s.textContent = ch === ' ' ? ' ' : ch;
     word.appendChild(s);
   }
   el.appendChild(word);

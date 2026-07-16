@@ -78,8 +78,8 @@ export const volleyball = {
 // Reading — favorite books, "key area" hero. Titles/authors are placeholders;
 // don't invent real ones — leave as TODO until you hand me the actual list.
 export const books = [
-  { title: 'TODO(santiago)', author: 'Title one' },
-  { title: 'TODO(santiago)', author: 'Title two' },
-  { title: 'TODO(santiago)', author: 'Title three' },
-  { title: 'TODO(santiago)', author: 'Title four' },
+  { title: 'Title one', author: 'TODO(santiago)' },
+  { title: 'Title two', author: 'TODO(santiago)' },
+  { title: 'Title three', author: 'TODO(santiago)' },
+  { title: 'Title four', author: 'TODO(santiago)' },
 ];
