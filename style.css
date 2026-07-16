@@ -503,8 +503,97 @@ main {
 }
 
 /* -------------------------------------------------------------------------
+   TEMPORARY — Recital concept A/B review toggle. Delete with the toggle
+   markup in index.html once a concept is picked.
+   ------------------------------------------------------------------------- */
+.concept-toggle {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 8, 12, 0.78);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+.concept-toggle-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 4px;
+}
+.concept-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.concept-btn.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #17111b;
+}
+
+/* -------------------------------------------------------------------------
    Recital
    ------------------------------------------------------------------------- */
+/* Concept B (shared/pianoIllustrated.js) — sticky like .recital-inner so
+   it stays pinned behind the header/panel content across the section's
+   scroll range, the same way the fixed 3D #piano-stage does for Concept A. */
+.piano-illustrated-mount {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin-bottom: -100vh; /* don't consume layout height of its own */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+.piano-illustrated {
+  width: min(46vw, 600px);
+  margin-left: clamp(2vw, 4vw, 60px);
+}
+.pi-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 30px 55px rgba(0, 0, 0, 0.55));
+}
+.pi-body {
+  transition: filter 0.4s ease;
+}
+.pi-leg {
+  fill: #0c0a0e;
+  stroke: #000;
+  stroke-width: 0.4;
+}
+.pi-key {
+  transition: fill 0.2s ease;
+}
+.pi-key-white {
+  fill: #f2ede2;
+}
+.pi-key-black {
+  fill: #0a0a0c;
+  stroke: #000;
+  stroke-width: 0.2;
+}
+.pi-mood-glow {
+  mix-blend-mode: screen;
+}
+
 .recital-inner {
   width: 100%;
   max-width: var(--maxw);

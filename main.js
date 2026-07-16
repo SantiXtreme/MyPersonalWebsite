@@ -37,6 +37,7 @@ import {
   books,
 } from './shared/content.js';
 import { createGrandPiano3D, CAMERA_PRESETS } from './shared/piano3d.js';
+import { createIllustratedPiano } from './shared/pianoIllustrated.js';
 import { createRecitalPlayer, SONGS } from './shared/recital.js';
 import { createMotionField } from './scene3d.js';
 import { createNeuralNet } from './sections/neuralNet.js';
@@ -415,7 +416,11 @@ ScrollTrigger.create({
 });
 
 /* =========================================================================
-   11 · THE 3D PIANO STAGE (fixed) + camera choreography
+   11 · THE RECITAL VISUAL — two concepts, temporarily both wired in for
+   side-by-side comparison (see #recital-concept-toggle). Concept A is the
+   3D piano (shared/piano3d.js); Concept B is a flat illustrated piano
+   (shared/pianoIllustrated.js). Once one is picked, delete this toggle and
+   the other concept's module/markup/CSS entirely.
    ========================================================================= */
 const pianoMount = $('#piano-mount');
 const piano = createGrandPiano3D(pianoMount, {
@@ -430,6 +435,8 @@ const piano = createGrandPiano3D(pianoMount, {
 // piano would render its full PBR scene every frame from page load until
 // the user happened to scroll through the recital section once.
 piano.pause();
+
+const pianoB = createIllustratedPiano($('#piano-illustrated-mount'), { accentColor: '#e7b878' });
 
 // Overhead spotlight color per recital piece — a dreamy purple for
 // Liebestraum, a semi-dark green for Experience, a Gojo-esque limitless
@@ -454,17 +461,47 @@ function pulseAccent(v = 0.8, color) {
 }
 
 const stage = $('#piano-stage');
+const piBMount = $('#piano-illustrated-mount');
+let activeConcept = localStorage.getItem('recitalConcept') === 'B' ? 'B' : 'A';
+let recitalInView = false;
+
+function syncConceptRuntime() {
+  const showA = activeConcept === 'A';
+  stage.style.display = showA ? '' : 'none';
+  piBMount.style.display = showA ? 'none' : '';
+  if (showA) {
+    gsap.to(stage, { opacity: recitalInView ? 1 : 0, duration: 0.4, ease: 'power2.out' });
+    if (recitalInView) piano.resume();
+    else piano.pause();
+    pianoB.deactivate();
+  } else {
+    if (recitalInView) pianoB.activate();
+    else pianoB.deactivate();
+    piano.pause();
+  }
+}
+syncConceptRuntime();
+
+const conceptToggle = $('#recital-concept-toggle');
+if (conceptToggle) {
+  $$('.concept-btn', conceptToggle).forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.concept === activeConcept);
+    btn.addEventListener('click', () => {
+      activeConcept = btn.dataset.concept;
+      localStorage.setItem('recitalConcept', activeConcept);
+      $$('.concept-btn', conceptToggle).forEach((b) => b.classList.toggle('active', b === btn));
+      syncConceptRuntime();
+    });
+  });
+}
+
 ScrollTrigger.create({
   trigger: '#recital',
   start: 'top 85%',
   end: 'bottom 15%',
   onToggle: (self) => {
-    gsap.to(stage, { opacity: self.isActive ? 1 : 0, duration: 0.8, ease: 'power2.out' });
-    // The piano's WebGL render loop otherwise runs full PBR+shadows every
-    // frame for the entire page lifetime regardless of visibility — pause
-    // it outside this same boundary that already fades the stage's opacity.
-    if (self.isActive) piano.resume();
-    else piano.pause();
+    recitalInView = self.isActive;
+    syncConceptRuntime();
   },
 });
 
@@ -521,7 +558,8 @@ const tStatus = $('#t-status');
 const player = createRecitalPlayer({
   mediaContainer: media,
   onNote: (midi, opts) => {
-    piano.pressKey(midi, opts);
+    if (activeConcept === 'A') piano.pressKey(midi, opts);
+    else pianoB.pressKey(midi, opts);
     pulseAccent(opts?.velocity ?? 0.8, opts?.color);
     field.burst(window.innerWidth * 0.7, window.innerHeight * 0.55, {
       count: 6,
@@ -536,14 +574,19 @@ const player = createRecitalPlayer({
     else tStatus.textContent = s.playing ? 'playing' : 'paused';
 
     if (!REDUCED) {
-      if (s.playing) {
-        piano.flyTo('keys', 1.6);
-        setExposure(0.85);
-        piano.setMood(MOOD_COLORS[s.songId] ?? MOOD_COLORS.default);
+      const moodColor = s.playing ? MOOD_COLORS[s.songId] ?? MOOD_COLORS.default : null;
+      if (activeConcept === 'A') {
+        if (s.playing) {
+          piano.flyTo('keys', 1.6);
+          setExposure(0.85);
+        } else {
+          piano.flyTo('hero', 1.4);
+          setExposure(lerp(0.62, 1.08, dollyProgress));
+        }
+        piano.setMood(moodColor);
       } else {
-        piano.flyTo('hero', 1.4);
-        setExposure(lerp(0.62, 1.08, dollyProgress));
-        piano.setMood(null);
+        pianoB.setPlaying(s.playing);
+        pianoB.setMood(moodColor);
       }
     }
   },
