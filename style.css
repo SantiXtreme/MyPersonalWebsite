@@ -973,7 +973,14 @@ main {
    Math & Physics — collision canvas + floating equations
    ------------------------------------------------------------------------- */
 #math-physics::before {
-  background: radial-gradient(120% 100% at 50% 40%, transparent 25%, rgba(5, 7, 14, 0.62) 100%);
+  /* A faint graph-paper grid (same pattern language as #machine-learning's
+     technical-grid overlay) instead of a plain vignette — the floating
+     equation glyphs read as decorating an actual "math surface" rather
+     than floating on empty gradient. */
+  background:
+    radial-gradient(120% 100% at 50% 40%, transparent 25%, rgba(5, 7, 14, 0.62) 100%),
+    repeating-linear-gradient(90deg, rgba(122, 178, 255, 0.045) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(0deg, rgba(122, 178, 255, 0.045) 0 1px, transparent 1px 64px);
 }
 #mathphysics-eq-wrap {
   position: relative;

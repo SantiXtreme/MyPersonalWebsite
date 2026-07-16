@@ -35,6 +35,7 @@ export function createOrbitalDemo(canvas, options = {}) {
   let active = false;
   let raf = null;
   let last = 0;
+  let clockT = 0;
   let bodies = [];
 
   function seed(b) {
@@ -131,6 +132,52 @@ export function createOrbitalDemo(canvas, options = {}) {
     ctx.fillStyle = 'rgba(230,238,255,0.55)';
     ctx.textAlign = 'left';
     ctx.fillText(`v = ${speed.toFixed(1)}   r = ${r.toFixed(0)}`, cx - W * 0.3, cy + H * 0.32);
+
+    drawFunctionGraph(clockT);
+  }
+
+  // A second, distinct visual in the same canvas — live-animated function
+  // curves, giving the section more than one kind of "math," not just
+  // orbits. Tucked into a quiet lower-left inset, clear of both the
+  // section text and the orbital system.
+  const GRAPH_CURVES = [
+    { fn: (x, t) => Math.sin(x * 1.3 + t), color: [122, 178, 255], label: 'sin(x)' },
+    { fn: (x, t) => 0.55 * Math.cos(x * 2.4 - t * 1.6), color: [231, 184, 120], label: 'cos(2x)' },
+  ];
+  function drawFunctionGraph(t) {
+    const gx = W * 0.07;
+    const gy = H * 0.74;
+    const gw = Math.min(W * 0.24, 300);
+    const gh = Math.min(H * 0.14, 90);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(200,215,255,0.16)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy + gh / 2);
+    ctx.lineTo(gx + gw, gy + gh / 2);
+    ctx.stroke();
+
+    GRAPH_CURVES.forEach(({ fn, color, label }, ci) => {
+      const [r, g, b] = color;
+      ctx.beginPath();
+      for (let i = 0; i <= 80; i++) {
+        const px = i / 80;
+        const x = px * Math.PI * 4;
+        const y = fn(x, t);
+        const sx = gx + px * gw;
+        const sy = gy + gh / 2 - y * (gh / 2) * 0.85;
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      }
+      ctx.strokeStyle = `rgba(${r},${g},${b},0.55)`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.font = '11px Fraunces, Georgia, serif';
+      ctx.fillStyle = `rgba(${r},${g},${b},0.7)`;
+      ctx.fillText(label, gx, gy - 6 - ci * 14);
+    });
+    ctx.restore();
   }
 
   const SUBSTEPS = 6; // symplectic Euler loses energy on eccentric orbits at
@@ -145,6 +192,7 @@ export function createOrbitalDemo(canvas, options = {}) {
     const frameDt = Math.min(32, now - last || 16) * 0.09;
     last = now;
     const dt = frameDt / SUBSTEPS;
+    clockT += frameDt * 0.02;
 
     bodies.forEach((b, i) => {
       for (let s = 0; s < SUBSTEPS; s++) {
