@@ -964,7 +964,7 @@ main {
 }
 
 /* -------------------------------------------------------------------------
-   Reading — falling book shelf
+   Reading — books falling from above, real covers, click for a note
    ------------------------------------------------------------------------- */
 #reading::before {
   background:
@@ -973,47 +973,168 @@ main {
 }
 .book-shelf-mount {
   position: relative;
-  min-height: 260px;
+  min-height: 300px;
 }
-.book-shelf {
+.book-fall {
   display: flex;
-  align-items: flex-end;
-  gap: clamp(10px, 1.6vw, 18px);
-  padding-top: 40px;
-  border-bottom: 3px solid rgba(214, 156, 96, 0.35);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: clamp(14px, 2vw, 24px);
+  padding-top: 30px;
 }
-.book-item {
+.book-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: clamp(64px, 9vw, 96px);
+  width: clamp(90px, 8vw, 118px);
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.3s var(--ease-out);
 }
-.book-spine {
+.book-card:hover,
+.book-card:focus-visible {
+  transform: translateY(-6px);
+}
+.book-cover {
+  position: relative;
   width: 100%;
-  height: clamp(160px, 20vw, 220px);
-  border-radius: 4px 4px 2px 2px;
-  background: linear-gradient(90deg, var(--spine-a), var(--spine-b));
-  box-shadow: inset -6px 0 10px rgba(0, 0, 0, 0.35), 0 14px 24px rgba(0, 0, 0, 0.4);
+  aspect-ratio: 2 / 3;
+  border-radius: 5px;
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 10px;
+  overflow: hidden;
 }
-.book-title {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
+.book-cover.has-image .book-fallback-title {
+  display: none;
+}
+.book-fallback-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 12px;
+  line-height: 1.25;
+  color: rgba(244, 239, 230, 0.88);
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.book-caption {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+.book-caption-title {
   font-family: 'Fraunces', Georgia, serif;
   font-size: 12px;
   color: rgba(244, 239, 230, 0.85);
-  letter-spacing: 0.04em;
-  text-align: center;
+  letter-spacing: 0.02em;
 }
-.book-author {
-  margin-top: 10px;
+.book-caption-author {
   font-size: 11px;
   color: var(--muted);
-  text-align: center;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+}
+
+/* Click-to-reveal note overlay */
+.book-note-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(6, 5, 9, 0.72);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+.book-note-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.book-note-panel {
+  position: relative;
+  width: min(520px, 100%);
+  display: flex;
+  gap: 20px;
+  padding: clamp(20px, 3vw, 30px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(16, 13, 10, 0.88);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.35s var(--ease-out);
+}
+.book-note-overlay.open .book-note-panel {
+  transform: translateY(0) scale(1);
+}
+.book-note-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.book-note-close:hover {
+  border-color: rgba(231, 184, 120, 0.5);
+  color: var(--ink);
+}
+.book-note-cover {
+  flex: none;
+  width: 110px;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+.book-note-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.book-note-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(19px, 2.4vw, 24px);
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.book-note-author {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.book-note-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+@media (max-width: 520px) {
+  .book-note-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .book-note-cover {
+    width: 90px;
+  }
 }
 
 /* -------------------------------------------------------------------------

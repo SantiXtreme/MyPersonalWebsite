@@ -74,11 +74,19 @@ export const volleyball = {
     'TODO(santiago): a couple of sentences on your volleyball background — how long you\'ve played, what position work means to you, any team/league worth naming.',
 };
 
-// Reading — favorite books, "key area" hero. Titles/authors are placeholders;
-// don't invent real ones — leave as TODO until you hand me the actual list.
+// Reading — favorite books, "key area" hero. Real list, user-supplied —
+// covers are fetched live from Open Library by title/author (see
+// sections/books.js), never invented or rehosted. `note` is what Santiago
+// liked about each one — always a TODO(santiago) placeholder here, never
+// invent an opinion on his behalf.
 export const books = [
-  { title: 'Title one', author: 'TODO(santiago)' },
-  { title: 'Title two', author: 'TODO(santiago)' },
-  { title: 'Title three', author: 'TODO(santiago)' },
-  { title: 'Title four', author: 'TODO(santiago)' },
+  { title: 'The Dogs of Riga', author: 'Henning Mankell', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'Atomic Habits', author: 'James Clear', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'La Délicatesse', author: 'David Foenkinos', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'The Library of Rejected Manuscripts', author: 'David Foenkinos', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'Greek Lessons', author: 'Han Kang', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'Shoe Dog', author: 'Phil Knight', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'Flights of Fancy', author: 'Richard Dawkins', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'Mrs Palfrey at the Claremont', author: 'Elizabeth Taylor', note: 'TODO(santiago): what did you like about this book?' },
+  { title: 'Jujutsu Kaisen, Vol. 26', author: 'Gege Akutami', note: 'TODO(santiago): what did you like about this book?' },
 ];
