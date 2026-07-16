@@ -1122,11 +1122,11 @@ main {
   color: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.3s var(--ease-out);
-}
-.book-card:hover,
-.book-card:focus-visible {
-  transform: translateY(-6px);
+  /* NOTE: the hover "pop" lives on .book-cover (below), not here — GSAP
+     sets an inline `transform` directly on .book-card for the falling
+     entrance animation (sections/books.js), and an inline style always
+     beats a stylesheet rule regardless of :hover, so a transform here
+     would simply be ignored once GSAP has touched the element. */
 }
 .book-cover {
   position: relative;
@@ -1139,6 +1139,18 @@ main {
   justify-content: center;
   padding: 10px;
   overflow: hidden;
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s ease;
+}
+.book-card:hover .book-cover,
+.book-card:focus-visible .book-cover {
+  /* A clear "picked up, clickable" pop. */
+  transform: translateY(-14px) scale(1.08);
+  box-shadow: 0 26px 40px rgba(0, 0, 0, 0.55), 0 0 0 1.5px rgba(231, 184, 120, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.book-card:hover,
+.book-card:focus-visible {
+  z-index: 2;
 }
 .book-cover.has-image .book-fallback-title {
   display: none;
