@@ -39,17 +39,15 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // camera-fly, etc.) so tuning the shot only ever happens in one place instead
 // of being copy-pasted per concept.
 //
-// 'hero' and 'stage' are deliberately wide, concert-hall-distance shots —
-// user feedback on an earlier close-up framing was that the piano's
-// procedural geometry reads as visually confusing up close ("the keys and
-// the black part are in the wrong order"); pulled back to a small piano on
-// a lit stage (see buildBackdrop() below), that same geometry just reads as
-// "a shiny grand piano," which is all a background element needs to do.
-// 'keys' stays closer for when a song is actually playing.
+// A wide "concert hall" framing was tried and rejected (see the removed
+// buildBackdrop() note above) — these are back to a medium 3/4 shot that
+// shows the whole instrument clearly without the extreme close-up that
+// used to expose every geometry seam, or the extreme wide shot that needed
+// a backdrop this project doesn't have a good one for yet.
 export const CAMERA_PRESETS = {
-  hero: { pos: [10.5, 5.2, -5.4], look: [0.8, 0.7, 1.4] },
-  keys: { pos: [2.6, 1.85, -0.8], look: [0.78, 0.74, 0.05] },
-  stage: { pos: [16, 7.4, -8.2], look: [0.8, 0.7, 1.5] },
+  hero: { pos: [5.2, 3.4, -1.2], look: [0.78, 0.7, 1.3] },
+  keys: { pos: [3.6, 2.3, -1.1], look: [0.78, 0.73, 0.15] },
+  stage: { pos: [7.5, 4.5, -2.8], look: [0.78, 0.7, 1.3] },
 };
 
 function buildBodyShape() {
@@ -168,84 +166,14 @@ function makeEnvironment(renderer) {
   return envMap;
 }
 
-// Warm wood-paneled concert-hall backdrop — visible geometry (not just
-// environment lighting) so the now-much-wider default camera framing (see
-// CAMERA_PRESETS) has an actual stage around the piano instead of void.
-// Flat panels only, no external textures: a back wall, an angled "ceiling"
-// sweeping down toward it, a few horizontal band accents for paneling, and
-// two angled wings for a soft proscenium.
-function buildBackdrop() {
-  const group = new THREE.Group();
-
-  // The piano's own light rig (below) is tuned for close-range illumination
-  // of the instrument, not a 20+-unit-wide hall — so these carry their own
-  // `emissive` glow rather than depending on scene lights to reach them.
-  // Keeps them reading as "warm lit wood" without needing to re-tune the
-  // whole rig's falloff distances around the (already-dialed-in) piano.
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x6b4530,
-    roughness: 0.85,
-    side: THREE.DoubleSide,
-    emissive: 0x6b4530,
-    emissiveIntensity: 1.7,
-  });
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(26, 11), wallMat);
-  // y nudged up so the plane's bottom edge (5.6 - 11/2 = 0.1) stays just
-  // clear of the floor Reflector's clip plane at y=0 — a wall dipping
-  // below the mirror plane was the actual cause of a red artifact smeared
-  // across the reflection (confirmed by hiding the Reflector and watching
-  // it vanish). Don't let backdrop geometry cross y=0 again.
-  wall.position.set(2, 5.6, 10.5);
-  wall.receiveShadow = true;
-  group.add(wall);
-
-  const ceilMat = new THREE.MeshStandardMaterial({
-    color: 0x86593a,
-    roughness: 0.8,
-    side: THREE.DoubleSide,
-    emissive: 0x86593a,
-    emissiveIntensity: 2.3,
-  });
-  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(24, 15), ceilMat);
-  ceiling.position.set(2, 9.8, 2);
-  ceiling.rotation.x = THREE.MathUtils.degToRad(58);
-  group.add(ceiling);
-
-  [0x744a2e, 0x5c3a24, 0x7d5535, 0x654028].forEach((c, i) => {
-    const band = new THREE.Mesh(
-      new THREE.PlaneGeometry(26, 0.5),
-      new THREE.MeshStandardMaterial({
-        color: c,
-        roughness: 0.75,
-        side: THREE.DoubleSide,
-        emissive: c,
-        emissiveIntensity: 1.7,
-      })
-    );
-    band.position.set(2, 1.4 + i * 2.2, 10.4);
-    group.add(band);
-  });
-
-  const wingMat = new THREE.MeshStandardMaterial({
-    color: 0x2e2118,
-    roughness: 0.9,
-    side: THREE.DoubleSide,
-    emissive: 0x2e2118,
-    emissiveIntensity: 0.9,
-  });
-  // Same y-nudge as the wall, same reason — Y-axis rotation doesn't change
-  // a plane's world-Y extent, so these need the same clearance from y=0.
-  const wingL = new THREE.Mesh(new THREE.PlaneGeometry(11, 11), wingMat);
-  wingL.position.set(-7.5, 5.6, 4);
-  wingL.rotation.y = THREE.MathUtils.degToRad(35);
-  group.add(wingL);
-  const wingR = new THREE.Mesh(new THREE.PlaneGeometry(11, 11), wingMat.clone());
-  wingR.position.set(11.5, 5.6, 4);
-  wingR.rotation.y = THREE.MathUtils.degToRad(-35);
-  group.add(wingR);
-
-  return group;
-}
+// A literal wood-panel-wall backdrop was tried here (flat emissive planes
+// behind/beside the piano for the wide "concert hall" framing) and the
+// user's verdict was blunt: they read as "simple color bricks," not walls.
+// Removed entirely — the piano now sits against the page's own ambient
+// particle field/gradient atmosphere (same as every other section), no
+// literal room geometry. If a backdrop is wanted again, it needs an actual
+// design pass (real paneling detail, proper lighting reach), not another
+// quick flat-plane attempt.
 
 export function createGrandPiano3D(container, options = {}) {
   const {
@@ -279,8 +207,6 @@ export function createGrandPiano3D(container, options = {}) {
 
   const envMap = makeEnvironment(renderer);
   scene.environment = envMap;
-
-  scene.add(buildBackdrop());
 
   // ---- materials ----
   // DoubleSide on the extruded-shape materials: the extrude's winding
@@ -399,19 +325,32 @@ export function createGrandPiano3D(container, options = {}) {
   plate.receiveShadow = true;
   root.add(plate);
 
-  const STRING_COUNT = 40;
+  // Strings anchor at the plate's actual front width (~x:0.3-1.28 — see
+  // buildPlateShape's front-edge points) and fan toward its wider tail
+  // bulge for the long bass strings, staying nearly straight for the short
+  // treble ones — a plain parallel run (the old version) left every string
+  // confined to a band narrower than the plate itself, visibly disconnected
+  // from the soundboard shape it's supposed to sit on top of.
+  function makeString(start, end, radius) {
+    const dir = new THREE.Vector3().subVectors(end, start);
+    const geo = new THREE.CylinderGeometry(radius, radius, dir.length(), 6);
+    const mesh = new THREE.Mesh(geo, stringMat);
+    mesh.position.copy(start).addScaledVector(dir, 0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    return mesh;
+  }
+  const STRING_COUNT = 42;
   const stringsGroup = new THREE.Group();
   for (let i = 0; i < STRING_COUNT; i++) {
     const t = i / (STRING_COUNT - 1); // 0 = bass (long, thick), 1 = treble (short, thin)
-    const x = lerp(0.08, 1.86, t);
-    const len = lerp(2.3, 0.68, t);
-    const zStart = lerp(0.6, 0.66, t);
-    const radius = lerp(0.0017, 0.0008, t);
-    const geo = new THREE.CylinderGeometry(radius, radius, len, 6);
-    const mesh = new THREE.Mesh(geo, stringMat);
-    mesh.rotation.x = Math.PI / 2;
-    mesh.position.set(x, 0.768, zStart + len / 2);
-    stringsGroup.add(mesh);
+    const xFront = lerp(0.3, 1.28, t);
+    const len = lerp(2.05, 0.6, t);
+    const fan = lerp(0.5, 0.03, t); // bass strings angle toward the plate's -X tail bulge
+    const radius = lerp(0.0028, 0.0012, t); // thickened for legibility at real render distance
+    const zStart = 0.64;
+    const start = new THREE.Vector3(xFront, 0.768, zStart);
+    const end = new THREE.Vector3(xFront - fan, 0.768, zStart + len);
+    stringsGroup.add(makeString(start, end, radius));
   }
   root.add(stringsGroup);
 
@@ -577,24 +516,35 @@ export function createGrandPiano3D(container, options = {}) {
   const lyrePost = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 8), lacquer);
   lyrePost.position.set(0.77, 0.36, -0.05);
   root.add(lyrePost);
-  [0.62, 0.77, 0.92].forEach((x) => {
-    const pedal = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, 0.1), goldHardware);
-    pedal.position.set(x, 0.07, -0.05);
-    pedal.rotation.x = THREE.MathUtils.degToRad(-8);
-    root.add(pedal);
-  });
+  // A rounded-tip paddle (a flat pad + a half-cylinder cap at the toe end)
+  // instead of a bare box — reads as an actual pedal lever, not a brick.
+  function makePedal(x) {
+    const g = new THREE.Group();
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.01, 0.085), goldHardware);
+    pad.position.set(0, 0, -0.02);
+    g.add(pad);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.01, 16, 1, false, 0, Math.PI), goldHardware);
+    cap.rotation.set(0, 0, Math.PI / 2);
+    cap.rotation.y = Math.PI / 2;
+    cap.position.set(0, 0, 0.0625);
+    g.add(cap);
+    g.position.set(x, 0.07, -0.05);
+    g.rotation.x = THREE.MathUtils.degToRad(-8);
+    return g;
+  }
+  [0.62, 0.77, 0.92].forEach((x) => root.add(makePedal(x)));
 
   // ---- floor: shadow-catcher only ----
   // Used to be a real-time mirror (Reflector) + a transparent ShadowMaterial
   // plane sitting a hair above it to catch the contact shadow without
-  // breaking the mirror. The much wider "wide concert hall" camera framing
-  // (see CAMERA_PRESETS) needed a bigger floor radius, and enlarging the
-  // Reflector specifically produced a persistent stray red-triangle smear
-  // in the mirrored image — tried a larger clipBias, a more moderate
-  // radius, and moving the backdrop geometry clear of the y=0 clip plane;
-  // none of it fixed it. Isolated it conclusively by hiding the Reflector
-  // and the shadow-catcher independently — only hiding the Reflector made
-  // the artifact disappear, and the resulting shot (just the shadow catcher
+  // breaking the mirror. A now-abandoned wide "concert hall" camera
+  // experiment needed a bigger floor radius, and enlarging the Reflector
+  // specifically produced a persistent stray red-triangle smear in the
+  // mirrored image — tried a larger clipBias, a more moderate radius, and
+  // moving nearby geometry clear of the y=0 clip plane; none of it fixed
+  // it. Isolated it conclusively by hiding the Reflector and the
+  // shadow-catcher independently — only hiding the Reflector made the
+  // artifact disappear, and the resulting shot (just the shadow catcher
   // over the page's own starfield field showing through the transparent
   // canvas) already looked good on its own, so the mirror was dropped
   // rather than keep chasing what's most likely a software-rendering
@@ -603,7 +553,7 @@ export function createGrandPiano3D(container, options = {}) {
   // Reflector without re-testing in a real GPU browser first.
   let shadowCatcher = null;
   if (floor) {
-    const floorGeo = new THREE.CircleGeometry(8, 64);
+    const floorGeo = new THREE.CircleGeometry(5, 64);
     shadowCatcher = new THREE.Mesh(floorGeo, new THREE.ShadowMaterial({ opacity: 0.5 }));
     shadowCatcher.rotation.x = -Math.PI / 2;
     shadowCatcher.position.y = 0.002;
