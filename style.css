@@ -1156,6 +1156,14 @@ main {
   min-height: 56.25vw;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  /* Hidden until sections/eldenRingBg.js confirms real PLAYING state —
+     YouTube's own loading/cued-state UI (title card, pause icon) would
+     otherwise show through here regardless of controls:0. */
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.eldenring-bg-frame.ready {
+  opacity: 1;
 }
 .eldenring-bg-frame iframe {
   width: 100%;

@@ -1,10 +1,12 @@
 // Reading hero — books fall in from above and settle into a loose scatter,
-// showing their real front covers (fetched live from Open Library by
-// title/author — same "always a real embed/API, never invent or rehost"
-// rule the rest of the site follows for YouTube/SoundCloud). Click a book
-// to reveal a side note (what Santiago liked about it) in an overlay panel.
-// Any cover that can't be resolved falls back to a colored gradient card
-// with the title set in type — never a broken image.
+// showing their real front covers. Two titles (see MANUAL_COVERS) use a
+// user-supplied cover image directly; everything else is fetched live from
+// Open Library by title/author — same "always a real embed/API, never
+// invent or rehost" rule the rest of the site follows for YouTube/
+// SoundCloud. Click a book to reveal a side note (what Santiago liked
+// about it) in an overlay panel. Any cover that can't be resolved falls
+// back to a colored gradient card with the title set in type — never a
+// broken image.
 //
 // Usage:
 //   const shelf = createBookDrop(containerEl, books); // books from content.js
@@ -12,8 +14,17 @@
 //   shelf.dispose();
 
 import gsap from 'gsap';
+import dogsOfRigaCover from '../assets/books/dogs-of-riga.jpeg';
+import libraryOfRejectedManuscriptsCover from '../assets/books/library-of-rejected-manuscripts.jpg';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// User-supplied covers for the two titles Open Library's search didn't
+// resolve — checked before the live API lookup, keyed by exact title.
+const MANUAL_COVERS = {
+  'The Dogs of Riga': dogsOfRigaCover,
+  'The Library of Rejected Manuscripts': libraryOfRejectedManuscriptsCover,
+};
 
 const COVER_COLORS = [
   ['#8a5a3a', '#5c3a22'],
@@ -100,8 +111,7 @@ export function createBookDrop(container, books = []) {
     const coverEl = card.querySelector('.book-cover');
     let coverStyle = fallbackStyle;
 
-    fetchCoverUrl(b.title, b.author).then((url) => {
-      if (!url) return;
+    function applyCover(url) {
       const img = new Image();
       img.onload = () => {
         coverEl.style.background = `#111 url("${url}") center/cover no-repeat`;
@@ -109,7 +119,16 @@ export function createBookDrop(container, books = []) {
         coverStyle = `background: #111 url("${url}") center/cover no-repeat;`;
       };
       img.src = url;
-    });
+    }
+
+    const manualUrl = MANUAL_COVERS[b.title];
+    if (manualUrl) {
+      applyCover(manualUrl);
+    } else {
+      fetchCoverUrl(b.title, b.author).then((url) => {
+        if (url) applyCover(url);
+      });
+    }
 
     card.addEventListener('click', () => openNote(b, coverStyle));
     field.appendChild(card);
