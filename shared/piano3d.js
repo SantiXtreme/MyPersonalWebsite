@@ -8,7 +8,16 @@
 // (a detailed studio render: glossy black lacquer, brass lid trim, tapered
 // legs on brass cup casters, twin pedals, a tufted-leather bench) for the
 // fidelity target — everything in that reference except the wordmark is
-// reproduced here (bench included, see below).
+// reproduced here (bench included, see below). A second pass went further
+// into interior mechanical detail using Steinway-Sons-Grand-Piano-Hamburg-
+// scaled.jpg (a real interior photo, referenced for material/lighting/
+// geometry only — its wordmark stamp is the one detail deliberately never
+// reproduced): strings now bend over an actual bridge rail instead of
+// running as one straight cylinder, with distinct tuning pins at the
+// wrestplank end, hitch pins at the tail, and a duplex/capo bar tracing
+// the tuning-pin row. Legs and the pedal lyre post use a turned-baluster
+// lathe profile instead of a linear taper, and each pedal has a visible
+// rod running up to the keybed instead of hanging unattached.
 //
 // Usage:
 //   import { createGrandPiano3D, CAMERA_PRESETS } from './shared/piano3d.js';
@@ -254,6 +263,29 @@ export function createGrandPiano3D(container, options = {}) {
     roughness: 0.3,
     envMapIntensity: 1.1,
   });
+  // Blued-steel tuning/hitch pins — deliberately duller than the strings
+  // so a dense row of them doesn't compete with the string highlights.
+  const pinMat = new THREE.MeshStandardMaterial({
+    color: 0x7d7d84,
+    metalness: 0.9,
+    roughness: 0.32,
+    envMapIntensity: 1.1,
+  });
+  // Duplex/capo bar — the polished strip strings press over just past the
+  // tuning pins (a bright, very recognizable line in reference photos).
+  const capoBarMat = new THREE.MeshStandardMaterial({
+    color: 0xe2e2e6,
+    metalness: 0.95,
+    roughness: 0.12,
+    envMapIntensity: 1.4,
+  });
+  // The bridge — dark hardwood, distinct from the lighter soundboard it
+  // sits on (real bridges are typically a denser, redder-brown wood).
+  const bridgeMat = new THREE.MeshStandardMaterial({
+    color: 0x4a2413,
+    roughness: 0.55,
+    envMapIntensity: 0.5,
+  });
   const whiteKeyMat = new THREE.MeshPhysicalMaterial({
     color: 0xf6f2e7,
     roughness: 0.35,
@@ -331,6 +363,14 @@ export function createGrandPiano3D(container, options = {}) {
   // treble ones — a plain parallel run (the old version) left every string
   // confined to a band narrower than the plate itself, visibly disconnected
   // from the soundboard shape it's supposed to sit on top of.
+  //
+  // Each string is now two segments meeting at a bridge contact point
+  // instead of one straight run. A real string speaks between the tuning
+  // pin (front) and the bridge on the soundboard, then continues a short
+  // "after length" to the hitch pin near the tail — a single straight
+  // cylinder reads as a flat haze from above; the break at the bridge is
+  // what makes the strings look like they're resting on something rather
+  // than floating in a plane.
   function makeString(start, end, radius) {
     const dir = new THREE.Vector3().subVectors(end, start);
     const geo = new THREE.CylinderGeometry(radius, radius, dir.length(), 6);
@@ -339,8 +379,11 @@ export function createGrandPiano3D(container, options = {}) {
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
     return mesh;
   }
-  const STRING_COUNT = 42;
+  const STRING_COUNT = 60;
   const stringsGroup = new THREE.Group();
+  const tuningPinPts = [];
+  const bridgePts = [];
+  const hitchPinPts = [];
   for (let i = 0; i < STRING_COUNT; i++) {
     const t = i / (STRING_COUNT - 1); // 0 = bass (long, thick), 1 = treble (short, thin)
     const xFront = lerp(0.3, 1.28, t);
@@ -349,10 +392,63 @@ export function createGrandPiano3D(container, options = {}) {
     const radius = lerp(0.0028, 0.0012, t); // thickened for legibility at real render distance
     const zStart = 0.64;
     const start = new THREE.Vector3(xFront, 0.768, zStart);
-    const end = new THREE.Vector3(xFront - fan, 0.768, zStart + len);
-    stringsGroup.add(makeString(start, end, radius));
+    const end = new THREE.Vector3(xFront - fan, 0.741, zStart + len); // soundboard height at the hitch pin
+    // Bridge sits most of the way toward the tail — the long speaking
+    // length runs front-to-bridge, with only a short after-length
+    // continuing past it to the hitch pin, matching a real grand's layout.
+    const bridgeFrac = lerp(0.86, 0.8, t);
+    const bridge = start.clone().lerp(end, bridgeFrac);
+    bridge.y = 0.752; // proud of the soundboard (0.741), under the plate's underside
+    stringsGroup.add(makeString(start, bridge, radius));
+    stringsGroup.add(makeString(bridge, end, radius));
+    tuningPinPts.push(start.clone().add(new THREE.Vector3(0, -0.012, -0.02)));
+    bridgePts.push(bridge);
+    hitchPinPts.push(end.clone().add(new THREE.Vector3(0, 0.004, 0.012)));
   }
   root.add(stringsGroup);
+
+  // Tuning pins (wrestplank row) + hitch pins (tail rail) — small steel
+  // pegs following the same front/tail anchor points the strings use, so
+  // they line up exactly instead of being separately guessed. Every
+  // string gets a hitch pin; only every other gets a tuning pin (real
+  // ones are tightly packed enough that this still reads as a dense row
+  // without doubling the pin count for no visible gain at this scale).
+  const pinsGroup = new THREE.Group();
+  const tuningPinGeo = new THREE.CylinderGeometry(0.0026, 0.0026, 0.02, 6);
+  const hitchPinGeo = new THREE.CylinderGeometry(0.0016, 0.0016, 0.012, 6);
+  tuningPinPts.forEach((p, i) => {
+    if (i % 2 === 1) return;
+    const pin = new THREE.Mesh(tuningPinGeo, pinMat);
+    pin.position.copy(p);
+    pin.rotation.x = THREE.MathUtils.degToRad(-6);
+    pinsGroup.add(pin);
+  });
+  hitchPinPts.forEach((p) => {
+    const pin = new THREE.Mesh(hitchPinGeo, pinMat);
+    pin.position.copy(p);
+    pinsGroup.add(pin);
+  });
+  root.add(pinsGroup);
+
+  // Duplex/capo bar — traces the same front-edge points the tuning pins
+  // use, so it stays glued to the string row exactly rather than being
+  // hand-fit to a separate curve.
+  const capoCurve = new THREE.CatmullRomCurve3(
+    tuningPinPts.map((p) => p.clone().add(new THREE.Vector3(0, 0.006, 0.01))),
+    false
+  );
+  const capoBar = new THREE.Mesh(new THREE.TubeGeometry(capoCurve, 80, 0.004, 8, false), capoBarMat);
+  root.add(capoBar);
+
+  // Bridge rail — built from the same bridgePts the strings bend at above,
+  // so the raised wood sits exactly under the strings instead of being
+  // eyeballed separately.
+  const bridgeCurve = new THREE.CatmullRomCurve3(
+    bridgePts.map((p) => p.clone().add(new THREE.Vector3(0, -0.003, 0))),
+    false
+  );
+  const bridgeRail = new THREE.Mesh(new THREE.TubeGeometry(bridgeCurve, 80, 0.009, 8, false), bridgeMat);
+  root.add(bridgeRail);
 
   // ---- lid (propped open) ----
   const lidShape = buildLidShape();
@@ -390,13 +486,29 @@ export function createGrandPiano3D(container, options = {}) {
   root.add(prop);
 
   // ---- legs ----
+  // A turned-baluster profile (subtle bulge in the upper third, waisted
+  // middle, slender ankle near the caster) instead of a plain linear
+  // taper — reads as a carved furniture leg rather than a traffic cone.
+  // Shared by the main legs and the (smaller) bench legs below via the
+  // same radiusTop/radiusBottom scale so both stay proportional.
+  function legLatheGeometry(radiusTop, radiusBottom, height) {
+    const profile = [
+      { y: 0.0, r: radiusBottom },
+      { y: 0.16, r: radiusBottom * 1.25 },
+      { y: 0.32, r: radiusTop * 0.78 },
+      { y: 0.46, r: radiusTop * 0.92 },
+      { y: 0.58, r: radiusTop * 0.74 },
+      { y: 0.74, r: radiusTop * 0.94 },
+      { y: 1.0, r: radiusTop },
+    ];
+    const points = profile.map(({ y, r }) => new THREE.Vector2(Math.max(r, 0.0006), y * height));
+    return new THREE.LatheGeometry(points, 16);
+  }
   // legRadiusTop/Bottom let the (smaller, lighter) bench legs below reuse
   // this same builder instead of a second hand-tuned copy.
   function makeLeg(x, z, legRadiusTop = 0.05, legRadiusBottom = 0.035, legHeight = 0.72) {
     const g = new THREE.Group();
-    const legGeo = new THREE.CylinderGeometry(legRadiusTop, legRadiusBottom, legHeight, 12);
-    const leg = new THREE.Mesh(legGeo, lacquer);
-    leg.position.y = legHeight / 2;
+    const leg = new THREE.Mesh(legLatheGeometry(legRadiusTop, legRadiusBottom, legHeight), lacquer);
     leg.castShadow = true;
     g.add(leg);
     // brass cup collar just above the caster ball — reads as furniture-grade
@@ -512,9 +624,13 @@ export function createGrandPiano3D(container, options = {}) {
   desk.rotation.x = THREE.MathUtils.degToRad(-18);
   root.add(desk);
 
-  // pedals, hanging below the keybed's front-center on a simple lyre post
-  const lyrePost = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.62, 8), lacquer);
-  lyrePost.position.set(0.77, 0.36, -0.05);
+  // pedals, hanging below the keybed's front-center on a turned lyre post
+  // (legLatheGeometry, same turned-baluster profile as the main legs —
+  // was a bare cylinder before, part of the "pedals are just bricks"
+  // complaint even though the pedals themselves weren't the only culprit).
+  const lyrePost = new THREE.Mesh(legLatheGeometry(0.024, 0.015, 0.62), lacquer);
+  lyrePost.position.set(0.77, 0.05, -0.05);
+  lyrePost.castShadow = true;
   root.add(lyrePost);
   // A rounded-tip paddle (a flat pad + a half-cylinder cap at the toe end)
   // instead of a bare box — reads as an actual pedal lever, not a brick.
@@ -533,6 +649,20 @@ export function createGrandPiano3D(container, options = {}) {
     return g;
   }
   [0.62, 0.77, 0.92].forEach((x) => root.add(makePedal(x)));
+
+  // Thin trapwork rods connecting each pedal up to the keybed — without
+  // these the pedals read as unattached floating shapes rather than part
+  // of a mechanism, a specific complaint from the previous pass.
+  function makePedalRod(x) {
+    const from = new THREE.Vector3(x, 0.1, -0.045);
+    const to = new THREE.Vector3(0.77, 0.685, -0.05);
+    const dir = new THREE.Vector3().subVectors(to, from);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, dir.length(), 6), pinMat);
+    rod.position.copy(from).addScaledVector(dir, 0.5);
+    rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    return rod;
+  }
+  [0.62, 0.77, 0.92].forEach((x) => root.add(makePedalRod(x)));
 
   // ---- floor: shadow-catcher only ----
   // Used to be a real-time mirror (Reflector) + a transparent ShadowMaterial
