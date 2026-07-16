@@ -654,6 +654,12 @@ export function createGrandPiano3D(container, options = {}) {
   ro.observe(container);
 
   // ---- render loop ----
+  // `running` also doubles as a visibility gate — the piano stage is fixed
+  // and only actually shown near the recital section, but nothing was ever
+  // pausing this loop while scrolled away, so it kept rendering a full PBR
+  // scene (shadows, PMREM env, backdrop) every frame for the entire page
+  // lifetime. See pause()/resume() below — main.js wires these to the same
+  // ScrollTrigger boundary that already fades #piano-stage's opacity.
   let running = true;
   function loop() {
     if (!running) return;
@@ -711,6 +717,15 @@ export function createGrandPiano3D(container, options = {}) {
     });
   }
 
+  function pause() {
+    running = false;
+  }
+  function resume() {
+    if (running) return;
+    running = true;
+    loop();
+  }
+
   function dispose() {
     running = false;
     ro.disconnect();
@@ -719,5 +734,5 @@ export function createGrandPiano3D(container, options = {}) {
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
   }
 
-  return { pressKey, flyTo, setMood, resize, dispose, scene, camera, renderer, root };
+  return { pressKey, flyTo, setMood, pause, resume, resize, dispose, scene, camera, renderer, root };
 }

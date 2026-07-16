@@ -334,7 +334,18 @@ const mathEquations = createFloatingEquations($('#mathphysics-eq-wrap'), { densi
 const aboutEquations = createFloatingEquations($('#about-canvas-wrap'), { density: 'sparse', opacity: 0.22 });
 mathEquations.bindScroll(ScrollTrigger, '#math-physics');
 aboutEquations.bindScroll(ScrollTrigger, '#about');
-aboutEquations.activate();
+// Was previously activated unconditionally at page load and never
+// deactivated — ran its rAF loop forever regardless of scroll position.
+// Gated the same way mathEquations already was, just below.
+ScrollTrigger.create({
+  trigger: '#about',
+  start: 'top 70%',
+  end: 'bottom 30%',
+  onEnter: () => aboutEquations.activate(),
+  onEnterBack: () => aboutEquations.activate(),
+  onLeave: () => aboutEquations.deactivate(),
+  onLeaveBack: () => aboutEquations.deactivate(),
+});
 ScrollTrigger.create({
   trigger: '#math-physics',
   start: 'top 70%',
@@ -413,6 +424,12 @@ const piano = createGrandPiano3D(pianoMount, {
   bodyColor: 0x120f1e,
   floorColor: 0x0d1013,
 });
+// Starts paused — #recital is far below the fold on load, and
+// ScrollTrigger's onToggle below only fires on an actual boundary
+// crossing, not for "already inactive at creation," so without this the
+// piano would render its full PBR scene every frame from page load until
+// the user happened to scroll through the recital section once.
+piano.pause();
 
 // Overhead spotlight color per recital piece — a dreamy purple for
 // Liebestraum, a semi-dark green for Experience, a Gojo-esque limitless
@@ -441,7 +458,14 @@ ScrollTrigger.create({
   trigger: '#recital',
   start: 'top 85%',
   end: 'bottom 15%',
-  onToggle: (self) => gsap.to(stage, { opacity: self.isActive ? 1 : 0, duration: 0.8, ease: 'power2.out' }),
+  onToggle: (self) => {
+    gsap.to(stage, { opacity: self.isActive ? 1 : 0, duration: 0.8, ease: 'power2.out' });
+    // The piano's WebGL render loop otherwise runs full PBR+shadows every
+    // frame for the entire page lifetime regardless of visibility — pause
+    // it outside this same boundary that already fades the stage's opacity.
+    if (self.isActive) piano.resume();
+    else piano.pause();
+  },
 });
 
 const FAR = CAMERA_PRESETS.stage;
