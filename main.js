@@ -143,6 +143,14 @@ const torch = $('#torch');
 const reactiveCloud = createReactiveCloud();
 reactiveCloud.mount(document.body);
 
+// The reactive cloud's one extra utility besides lighting up letters —
+// lingering under the hero name reveals a hidden phrase. Bounding-box
+// proximity against #hero-title, not per-letter, so it doesn't flicker
+// between individual characters.
+const heroTitleEl = $('#hero-title');
+const heroPhraseEl = $('#hero-hidden-phrase');
+const HERO_PHRASE_MARGIN = 70;
+
 let lastEmberAt = 0;
 window.addEventListener('pointermove', (e) => {
   field.setPointer(e.clientX, e.clientY, true);
@@ -161,6 +169,17 @@ window.addEventListener('pointermove', (e) => {
   }
   if (currentScene === 'hero' || currentScene === 'contact') {
     reactiveCloud.updatePointer(e.clientX, e.clientY);
+  }
+  if (currentScene === 'hero' && heroPhraseEl) {
+    const r = heroTitleEl.getBoundingClientRect();
+    const near =
+      e.clientX > r.left - HERO_PHRASE_MARGIN &&
+      e.clientX < r.right + HERO_PHRASE_MARGIN &&
+      e.clientY > r.top - HERO_PHRASE_MARGIN &&
+      e.clientY < r.bottom + HERO_PHRASE_MARGIN;
+    heroPhraseEl.classList.toggle('revealed', near);
+  } else if (heroPhraseEl) {
+    heroPhraseEl.classList.remove('revealed');
   }
 });
 window.addEventListener('pointerleave', () => {

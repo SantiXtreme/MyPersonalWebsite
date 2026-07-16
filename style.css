@@ -346,6 +346,29 @@ main {
   color: var(--ink-dim);
   line-height: 1.4;
 }
+.hero-hidden-phrase {
+  /* max-height animates from 0 so revealing/hiding this cleanly pushes the
+     tagline down/up instead of overlapping it — a negative-margin version
+     of this and a position:absolute version before that both fought with
+     the tagline's actual rendered position and overlapped it. */
+  max-height: 0;
+  overflow: hidden;
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: var(--blue-bright);
+  text-shadow: 0 0 18px rgba(111, 163, 255, 0.55);
+  opacity: 0;
+  transition: opacity 0.4s ease, max-height 0.5s ease, margin-top 0.5s ease;
+  pointer-events: none;
+}
+.hero-hidden-phrase.revealed {
+  max-height: 26px;
+  margin-top: 4px;
+  opacity: 1;
+}
 .hero-cue {
   display: flex;
   align-items: center;
