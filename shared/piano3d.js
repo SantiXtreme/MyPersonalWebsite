@@ -714,43 +714,15 @@ export function createGrandPiano3D(container, options = {}) {
   const hemi = new THREE.HemisphereLight(0x445066, 0x0a0a0c, 0.4);
   scene.add(hemi);
 
-  // A colored spotlight from directly above, off by default — driven by
-  // setMood() below, one color per recital piece (see main.js).
-  const moodLight = new THREE.SpotLight(0xb98cff, 0, 16, Math.PI / 4, 0.5, 1);
-  moodLight.position.set(0.8, 9, 1.4);
-  moodLight.target.position.set(0.8, 0.62, 1.4);
-  scene.add(moodLight, moodLight.target);
-
-  // The actual visible beam — a SpotLight only illuminates surfaces it
-  // hits, it doesn't render as a shaft of light in the air, so without
-  // this the "colored light from above, cone-like" mood cue was invisible
-  // except as a faint tint on the piano itself. Two nested translucent,
-  // additively-blended cones (tight bright core + soft wide halo) sharing
-  // the same straight-down axis as moodLight above, faded in step with it
-  // in setMood(). depthWrite is off so overlapping cone geometry doesn't
-  // self-occlude or fight the piano's opaque depth buffer.
-  function makeMoodCone(radius, height, color) {
-    const geo = new THREE.ConeGeometry(radius, height, 28, 1, true);
-    geo.translate(0, -height / 2, 0); // apex at local y=0, base extends down to -height
-    const mat = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    });
-    return new THREE.Mesh(geo, mat);
-  }
-  const MOOD_CONE_HEIGHT = 5.2;
-  const moodConeGroup = new THREE.Group();
-  moodConeGroup.position.set(0.8, 5.9, 1.4); // apex — same x/z as moodLight, high above the piano
-  const moodConeInner = makeMoodCone(0.4, MOOD_CONE_HEIGHT, 0xb98cff);
-  const moodConeOuter = makeMoodCone(0.85, MOOD_CONE_HEIGHT, 0xb98cff);
-  moodConeGroup.add(moodConeOuter, moodConeInner);
-  scene.add(moodConeGroup);
-  const MOOD_CONE_INNER_PEAK = 0.24;
-  const MOOD_CONE_OUTER_PEAK = 0.1;
+  // A per-song overhead colored SpotLight + a visible additive-blended
+  // cone beam used to live here (setMood(), driven by main.js's
+  // MOOD_COLORS) — the user's verdict on the cone specifically: "the piano
+  // view closes up, which honestly looks great but the light does not."
+  // Removed entirely rather than kept as an unused hook. Per-song color
+  // reaction now lives outside the piano scene instead: the ambient
+  // particle field tints (scene3d.js's setTint) and a flowing-notes DOM
+  // layer recolors (sections/notesFlow.js) — see main.js's recital
+  // onStateChange handler.
 
   // ---- resize handling ----
   function resize() {
@@ -796,34 +768,6 @@ export function createGrandPiano3D(container, options = {}) {
       .to(mesh.rotation, { x: 0, duration: holdTime, ease: 'power2.out' });
   }
 
-  // Overhead colored spotlight, one hue per recital piece (see main.js) —
-  // fades out, swaps color, fades back in, so the change reads as a
-  // theater lighting cue rather than a hard color-pop mid-transition.
-  function setMood(hexColor, targetIntensity = 95, duration = 1.4) {
-    gsap.killTweensOf(moodLight);
-    gsap.killTweensOf(moodConeInner.material);
-    gsap.killTweensOf(moodConeOuter.material);
-    if (hexColor == null) {
-      gsap.to(moodLight, { intensity: 0, duration: duration * 0.6, ease: 'power2.in' });
-      gsap.to(moodConeInner.material, { opacity: 0, duration: duration * 0.6, ease: 'power2.in' });
-      gsap.to(moodConeOuter.material, { opacity: 0, duration: duration * 0.6, ease: 'power2.in' });
-      return;
-    }
-    gsap
-      .timeline()
-      .to(moodLight, { intensity: 0, duration: duration * 0.35, ease: 'power2.in' })
-      .to(moodConeInner.material, { opacity: 0, duration: duration * 0.35, ease: 'power2.in' }, '<')
-      .to(moodConeOuter.material, { opacity: 0, duration: duration * 0.35, ease: 'power2.in' }, '<')
-      .call(() => {
-        moodLight.color.set(hexColor);
-        moodConeInner.material.color.set(hexColor);
-        moodConeOuter.material.color.set(hexColor);
-      })
-      .to(moodLight, { intensity: targetIntensity, duration: duration * 0.65, ease: 'power2.out' })
-      .to(moodConeInner.material, { opacity: MOOD_CONE_INNER_PEAK, duration: duration * 0.65, ease: 'power2.out' }, '<')
-      .to(moodConeOuter.material, { opacity: MOOD_CONE_OUTER_PEAK, duration: duration * 0.65, ease: 'power2.out' }, '<');
-  }
-
   function flyTo(presetName, duration = 1.6) {
     const p = CAMERA_PRESETS[presetName];
     if (!p) return;
@@ -857,5 +801,5 @@ export function createGrandPiano3D(container, options = {}) {
     if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
   }
 
-  return { pressKey, flyTo, setMood, pause, resume, resize, dispose, scene, camera, renderer, root };
+  return { pressKey, flyTo, pause, resume, resize, dispose, scene, camera, renderer, root };
 }

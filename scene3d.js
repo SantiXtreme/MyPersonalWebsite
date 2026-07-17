@@ -15,6 +15,7 @@
 //   field.setPointer(x, y, true);
 //   field.burst(x, y, { color: 0xe7b878, count: 14 });
 //   field.setTint(0xdd93ab, 1400); // e.g. the active recital piece's color
+//   field.setTint(null); // clear immediately (e.g. on song pause/stop)
 //   field.dispose();
 
 import * as THREE from 'three';
@@ -506,6 +507,15 @@ export function createMotionField(canvas, options = {}) {
       gatherPoint = x == null ? null : { x, y: H - y };
     },
     setTint(color, ms = 1500) {
+      // null clears immediately — matches the null-to-clear convention used
+      // elsewhere (piano.setMood(null), the recital mood-color plumbing).
+      // Without this, a long-running tint (e.g. "for as long as a song
+      // plays") had no way to be cancelled early on pause/stop short of
+      // waiting out its full duration.
+      if (color == null) {
+        tint = null;
+        return;
+      }
       tint = { color: new THREE.Color(color), until: performance.now() + ms };
     },
     burst(x, y, opts = {}) {

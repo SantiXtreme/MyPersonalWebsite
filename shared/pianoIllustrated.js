@@ -18,8 +18,14 @@
 //   const piano = createIllustratedPiano(containerEl);
 //   piano.pressKey(midi, { velocity, sustain, color });
 //   piano.setPlaying(true);   // subtle zoom-in while a song plays
-//   piano.setMood('#b98cff'); // or setMood(null) to clear
 //   piano.dispose();
+//
+// Used to also have a setMood() (a radial glow + a screen-blended "light
+// beam" polygon, both recolored per song) — removed together with
+// piano3d.js's 3D light-cone equivalent when the user didn't like the
+// on-piano light cue; per-song color reaction now lives in the shared
+// background instead (scene3d.js's setTint + sections/notesFlow.js), see
+// main.js's recital onStateChange handler.
 
 import gsap from 'gsap';
 
@@ -63,39 +69,8 @@ export function createIllustratedPiano(container, options = {}) {
     <linearGradient id="pi-lid-fill" x1="0%" y1="100%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#0a0810"/>
       <stop offset="100%" stop-color="#2c2530"/>
-    </linearGradient>
-    <radialGradient id="pi-mood" cx="60%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="var(--pi-mood-color, #e7b878)" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="var(--pi-mood-color, #e7b878)" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="pi-beam" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="var(--pi-mood-color, #e7b878)" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="var(--pi-mood-color, #e7b878)" stop-opacity="0.05"/>
     </linearGradient>`;
   svg.appendChild(defs);
-
-  // 2D equivalent of piano3d.js's visible light cone — the radial mood
-  // glow below already tints the piece, but doesn't read as light
-  // *falling from above* the way the 3D concept's cone does. A narrow
-  // triangle widening from off-canvas (y < 0) down onto the lid, screen-
-  // blended so it reads as a beam rather than a flat colored shape.
-  const moodBeam = document.createElementNS(svgNS, 'polygon');
-  moodBeam.setAttribute('points', '255,-40 322,92 188,92');
-  moodBeam.setAttribute('fill', 'url(#pi-beam)');
-  moodBeam.setAttribute('class', 'pi-mood-beam');
-  moodBeam.style.opacity = '0';
-  moodBeam.style.mixBlendMode = 'screen';
-  svg.appendChild(moodBeam);
-
-  const moodGlow = document.createElementNS(svgNS, 'ellipse');
-  moodGlow.setAttribute('cx', '220');
-  moodGlow.setAttribute('cy', '90');
-  moodGlow.setAttribute('rx', '260');
-  moodGlow.setAttribute('ry', '200');
-  moodGlow.setAttribute('fill', 'url(#pi-mood)');
-  moodGlow.setAttribute('class', 'pi-mood-glow');
-  moodGlow.style.opacity = '0';
-  svg.appendChild(moodGlow);
 
   const bodyGroup = document.createElementNS(svgNS, 'g');
   bodyGroup.setAttribute('class', 'pi-body-group');
@@ -223,18 +198,6 @@ export function createIllustratedPiano(container, options = {}) {
     });
   }
 
-  function setMood(hexColor) {
-    if (hexColor == null) {
-      gsap.to(moodGlow, { opacity: 0, duration: 0.7, ease: 'power2.in' });
-      gsap.to(moodBeam, { opacity: 0, duration: 0.7, ease: 'power2.in' });
-      return;
-    }
-    const hex = typeof hexColor === 'number' ? `#${hexColor.toString(16).padStart(6, '0')}` : hexColor;
-    svg.style.setProperty('--pi-mood-color', hex);
-    gsap.to(moodGlow, { opacity: 1, duration: 0.9, ease: 'power2.out' });
-    gsap.to(moodBeam, { opacity: 1, duration: 0.9, ease: 'power2.out' });
-  }
-
   let sheenTween = null;
   function activate() {
     if (REDUCED || sheenTween) return;
@@ -253,7 +216,6 @@ export function createIllustratedPiano(container, options = {}) {
   return {
     pressKey,
     setPlaying,
-    setMood,
     activate,
     deactivate,
     dispose() {

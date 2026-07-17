@@ -638,8 +638,28 @@ main {
   stroke: #000;
   stroke-width: 0.2;
 }
-.pi-mood-glow {
-  mix-blend-mode: screen;
+
+/* Notes-flow background reaction (sections/notesFlow.js) — replaces an
+   earlier visible-spotlight-cone attempt the user didn't like ("the light
+   does not [look great]"). Sits behind both piano concepts, only visible
+   while a song is actually playing (opacity driven from main.js). */
+.notes-flow-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  overflow: hidden;
+}
+.notes-flow-glyph {
+  position: absolute;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(22px, 3vw, 40px);
+  color: var(--notes-color, var(--gold));
+  text-shadow: 0 0 18px var(--notes-color, var(--gold));
+  opacity: 0;
+  will-change: transform, top;
+  transition: color 0.9s ease, text-shadow 0.9s ease;
 }
 
 .recital-inner {
@@ -1302,7 +1322,7 @@ main {
 }
 
 /* -------------------------------------------------------------------------
-   Hobbies background — the Elden Ring embed (see sections/eldenRingBg.js)
+   Hobbies background — the user's own local video (see sections/eldenRingBg.js)
    ------------------------------------------------------------------------- */
 .hobbies-bg {
   position: absolute;
@@ -1312,28 +1332,21 @@ main {
 }
 .eldenring-bg-frame {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100%;
-  height: 100%;
-  min-width: 178vh; /* 16:9 cover-crop regardless of viewport aspect ratio */
-  min-height: 56.25vw;
-  transform: translate(-50%, -50%);
+  inset: 0;
   pointer-events: none;
-  /* Hidden until sections/eldenRingBg.js confirms real PLAYING state —
-     YouTube's own loading/cued-state UI (title card, pause icon) would
-     otherwise show through here regardless of controls:0. */
+  /* Hidden until the video reports canplay — avoids a one-frame flash of
+     an unpainted element on slow loads. */
   opacity: 0;
   transition: opacity 0.6s ease;
 }
 .eldenring-bg-frame.ready {
   opacity: 1;
 }
-.eldenring-bg-frame iframe {
+.eldenring-bg-frame video {
   width: 100%;
   height: 100%;
+  object-fit: cover;
   display: block;
-  border: 0;
 }
 
 /* -------------------------------------------------------------------------

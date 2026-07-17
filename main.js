@@ -45,6 +45,7 @@ import { createOrbitalDemo } from './sections/orbits.js';
 import { createFloatingEquations } from './sections/equations.js';
 import { createVolleyballPlayer } from './sections/volleyballPlayer.js';
 import { createEldenRingBackground } from './sections/eldenRingBg.js';
+import { createNotesFlow } from './sections/notesFlow.js';
 import { createBookDrop } from './sections/books.js';
 import { createReactiveCloud } from './sections/reactiveLetters.js';
 
@@ -456,12 +457,15 @@ const piano = createGrandPiano3D(pianoMount, {
 piano.pause();
 
 const pianoB = createIllustratedPiano($('#piano-illustrated-mount'), { accentColor: '#e7b878' });
+const notesFlow = createNotesFlow($('#notes-flow-mount'));
 
-// Overhead spotlight color per recital piece — a dreamy purple for
-// Liebestraum, a semi-dark green for Experience, a Gojo-esque limitless
-// blue for the JJK OST. Deliberately separate from PERFORMANCE_PROFILES'
-// colors in shared/recital.js (those drive the finer-grained per-note key
-// glow/accent-light/particle-burst reactivity and are tuned for that job).
+// Background reaction color per recital piece (ambient particle tint +
+// flowing notes, see the recital player's onStateChange below) — a dreamy
+// purple for Liebestraum, a semi-dark green for Experience, a Gojo-esque
+// limitless blue for the JJK OST. Deliberately separate from
+// PERFORMANCE_PROFILES' colors in shared/recital.js (those drive the
+// finer-grained per-note key glow/accent-light/particle-burst reactivity
+// and are tuned for that job).
 const MOOD_COLORS = {
   liebestraum: 0xb98cff,
   experience: 0x2f6b46,
@@ -602,11 +606,16 @@ const player = createRecitalPlayer({
           piano.flyTo('hero', 1.4);
           setExposure(lerp(0.62, 1.08, dollyProgress));
         }
-        piano.setMood(moodColor);
       } else {
         pianoB.setPlaying(s.playing);
-        pianoB.setMood(moodColor);
       }
+      // Background reaction, concept-agnostic — replaces an earlier visible
+      // spotlight-cone attempt over the piano itself ("the light does not
+      // [look great]"). Notes drift in behind the panel and the ambient
+      // particle field washes to the same color while a song plays.
+      notesFlow.setMood(moodColor);
+      notesFlow.setPlaying(s.playing);
+      field.setTint(moodColor, 999999);
     }
   },
 });
