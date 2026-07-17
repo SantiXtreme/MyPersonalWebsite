@@ -639,29 +639,6 @@ main {
   stroke-width: 0.2;
 }
 
-/* Notes-flow background reaction (sections/notesFlow.js) — replaces an
-   earlier visible-spotlight-cone attempt the user didn't like ("the light
-   does not [look great]"). Sits behind both piano concepts, only visible
-   while a song is actually playing (opacity driven from main.js). */
-.notes-flow-layer {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0;
-  overflow: hidden;
-}
-.notes-flow-glyph {
-  position: absolute;
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: clamp(22px, 3vw, 40px);
-  color: var(--notes-color, var(--gold));
-  text-shadow: 0 0 18px var(--notes-color, var(--gold));
-  opacity: 0;
-  will-change: transform, top;
-  transition: color 0.9s ease, text-shadow 0.9s ease;
-}
-
 .recital-inner {
   width: 100%;
   max-width: var(--maxw);

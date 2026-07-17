@@ -45,7 +45,6 @@ import { createOrbitalDemo } from './sections/orbits.js';
 import { createFloatingEquations } from './sections/equations.js';
 import { createVolleyballPlayer } from './sections/volleyballPlayer.js';
 import { createEldenRingBackground } from './sections/eldenRingBg.js';
-import { createNotesFlow } from './sections/notesFlow.js';
 import { createBookDrop } from './sections/books.js';
 import { createReactiveCloud } from './sections/reactiveLetters.js';
 
@@ -457,7 +456,6 @@ const piano = createGrandPiano3D(pianoMount, {
 piano.pause();
 
 const pianoB = createIllustratedPiano($('#piano-illustrated-mount'), { accentColor: '#e7b878' });
-const notesFlow = createNotesFlow($('#notes-flow-mount'));
 
 // Background reaction color per recital piece (ambient particle tint +
 // flowing notes, see the recital player's onStateChange below) — a dreamy
@@ -611,10 +609,12 @@ const player = createRecitalPlayer({
       }
       // Background reaction, concept-agnostic — replaces an earlier visible
       // spotlight-cone attempt over the piano itself ("the light does not
-      // [look great]"). Notes drift in behind the panel and the ambient
-      // particle field washes to the same color while a song plays.
-      notesFlow.setMood(moodColor);
-      notesFlow.setPlaying(s.playing);
+      // [look great]"). One call drives it all now (scene3d.js): the
+      // persistent field's clear color washes to the song's color (the
+      // main effect) plus a handful of small floating 3D notes fade in as
+      // a secondary accent. An earlier DOM-glyph version of the notes was
+      // both the wrong read on "floating 3D" and a real perf bug (mutating
+      // CSS top/left every frame) — see scene3d.js for the real fix.
       field.setTint(moodColor, 999999);
     }
   },

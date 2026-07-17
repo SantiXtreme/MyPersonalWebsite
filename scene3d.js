@@ -17,12 +17,21 @@
 //   field.setTint(0xdd93ab, 1400); // e.g. the active recital piece's color
 //   field.setTint(null); // clear immediately (e.g. on song pause/stop)
 //   field.dispose();
+//
+// setTint() drives more than particle color: it's the whole per-song
+// recital background reaction. The renderer's clear color washes toward
+// the tint (the main, deliberately-strong effect — "the background
+// should literally change color"), and a handful of small floating 3D
+// note meshes fade in as a secondary accent, both easing in/out together.
+// See the "floating 3D notes" block below for why these are real Object3D
+// meshes and not DOM elements.
 
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -281,11 +290,110 @@ export function createMotionField(canvas, options = {}) {
     scene.add(sigil);
   }
 
+  // ---- floating 3D notes (recital mood accent) ----
+  // A secondary accent while a song plays — the background clear-color
+  // wash below (see BASE_CLEAR/tintBlend) is the main effect; this is
+  // deliberately a handful of small, real 3D shapes (not flat DOM text —
+  // an earlier flat-glyph version was both the wrong read on "floating 3D"
+  // and, worse, a real perf bug: it mutated CSS top/left every frame,
+  // which forces a layout+repaint per element per frame instead of just a
+  // compositor-thread transform, and was the actual source of reported
+  // "insane lag." Real Object3D position updates here have no such cost.
+  // One shared material (not one per note) since all notes always share
+  // the same color/opacity, driven once per frame below. Each note's
+  // head/stem/flag are baked into ONE merged BufferGeometry (mergeGeometries,
+  // not a Group of separate meshes) — this sandbox's software renderer is
+  // disproportionately sensitive to draw-call count, so one draw call per
+  // note instead of two or three is a real, free win regardless of GPU.
+  function buildNoteGeometry(withFlag) {
+    const head = new THREE.CircleGeometry(1, 20);
+    head.rotateZ(-0.35);
+    head.scale(1, 0.76, 1);
+    const stem = new THREE.BoxGeometry(0.16, 3.2, 0.16);
+    stem.translate(0.92, 1.7, 0);
+    const parts = [head, stem];
+    // every other note gets a small angled "flag" — reads as an eighth
+    // note (♪) instead of a plain quarter note (♩), for a little variety.
+    if (withFlag) {
+      const flag = new THREE.BoxGeometry(0.9, 0.16, 0.16);
+      flag.rotateZ(-0.7);
+      flag.translate(1.25, 2.9, 0);
+      parts.push(flag);
+    }
+    return mergeGeometries(parts);
+  }
+  // Additive blending + depthWrite:false, matching the particle material
+  // above — a normal-blended translucent shape at ~0.5 opacity all but
+  // disappears once the background itself is a similar hue (which it now
+  // is, once the wash landed), same as the particles would without this.
+  const notesMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const NOTE_COUNT_3D = 6;
+  const notesGroup = new THREE.Group();
+  notesGroup.visible = false;
+  const notes3d = Array.from({ length: NOTE_COUNT_3D }, (_, i) => {
+    const mesh = new THREE.Mesh(buildNoteGeometry(i % 2 === 0), notesMat);
+    const scale = 9 + Math.random() * 9;
+    mesh.scale.setScalar(scale);
+    notesGroup.add(mesh);
+    return {
+      mesh,
+      xFrac: Math.random(),
+      // Initial seed spans the full drift range (0 to ~1.5), not just the
+      // below-the-fold spawn band — without this every note starts off-
+      // screen and a user who plays a song sees nothing for the first
+      // several seconds until the first ones drift up into view. Respawn
+      // (in the drift loop below) keeps using the below-the-fold band,
+      // that part is correct — only the *first* placement needed spreading.
+      yFrac: Math.random() * 1.5,
+      speed: 0.00006 + Math.random() * 0.00007, // frac of viewport height per ms
+      sway: 12 + Math.random() * 18,
+      seed: Math.random() * 1000,
+      rotX: (Math.random() - 0.5) * 0.0016,
+      rotY: (Math.random() - 0.5) * 0.0022,
+    };
+  });
+  scene.add(notesGroup);
+  let notesOpacity = 0;
+
   // ---- scene / palette state ----
   let target = SCENES.hero;
   const live = { a: [...target.a], b: [...target.b], drift: [...target.drift], turbulence: target.turbulence };
   let liveDensity = 1;
   let tint = null; // { color: THREE.Color, until: timestamp } — temporary per-song retint
+  // The clear-color wash is the *main* per-song background reaction (a
+  // literal color shift, not just a few tinted particles) — tintBlend
+  // eases toward/away from it so play/pause reads as a fade, not a snap.
+  // lastTintColor persists past tint clearing so the fade-out tail still
+  // references the right hue while tintBlend eases back to 0.
+  //
+  // Critical gotcha, found by screenshot after the first version washed
+  // the ENTIRE page out to near-white: this canvas runs ACESFilmicToneMapping
+  // (deliberately, for the ember/dust particle highlights — see the
+  // renderer setup above), and that curve is tuned around a mostly-dark
+  // frame with small bright highlights. Filling the *entire* frame with
+  // a moderate-brightness clear color (even an ordinary, not-especially-
+  // bright hex like 0x664488) reads to ACES as a huge bright area and
+  // blows the whole image out toward white. Confirmed by testing a bare
+  // static setClearColor() with no other logic involved at all — not a
+  // bug in the blend math, a fundamental mismatch between "tonemap a
+  // small highlight" and "tonemap the whole background." Fix: the wash
+  // targets a darkened copy of the tint color (see darkTintColor below),
+  // not the vivid hex used for particles/notes — same hue, low luminance,
+  // stays inside the range ACES was tuned for. A plain flat purple at
+  // that same low luminance (0x1a1030) was confirmed clean by screenshot.
+  const BASE_CLEAR = new THREE.Color(0x0b0910);
+  const lastTintColor = new THREE.Color(0x0b0910);
+  const darkTintColor = new THREE.Color(0x0b0910);
+  const liveClearColor = new THREE.Color(0x0b0910);
+  let tintBlend = 0;
   let sceneName = 'hero';
 
   function field(x, y, t) {
@@ -338,6 +446,44 @@ export function createMotionField(canvas, options = {}) {
     liveDensity = lerp(liveDensity, target.density, k);
 
     if (tint && performance.now() > tint.until) tint = null;
+    if (tint) {
+      lastTintColor.copy(tint.color);
+      darkTintColor.copy(tint.color).multiplyScalar(0.28); // see the gotcha note above
+    }
+
+    // Background clear-color wash — the main per-song reaction. Eases
+    // toward a strong (mostly-replaced, not subtle) mix with the *darkened*
+    // mood color while tint is active, and back to the base dusk tone when
+    // it clears. Blending toward darkTintColor (not the vivid tint.color
+    // used for particles/notes) is what keeps this from blowing out — see
+    // the gotcha note above.
+    tintBlend = lerp(tintBlend, tint ? 0.9 : 0, k);
+    liveClearColor.copy(BASE_CLEAR).lerp(darkTintColor, tintBlend);
+    renderer.setClearColor(liveClearColor, 1);
+
+    // Floating 3D notes — secondary accent, faded in step with the same
+    // tint state (see file header note on why these are real Object3D
+    // meshes and not DOM elements).
+    const notesTarget = tint ? 0.6 : 0;
+    notesOpacity = lerp(notesOpacity, notesTarget, k);
+    notesMat.opacity = notesOpacity;
+    if (notesOpacity > 0.004) {
+      notesMat.color.copy(lastTintColor).multiplyScalar(1.8); // boosted for bloom, see composer setup
+      notesGroup.visible = true;
+      notes3d.forEach((n) => {
+        n.yFrac -= n.speed * dt;
+        if (n.yFrac < -0.15) {
+          n.yFrac = 1.15 + Math.random() * 0.35;
+          n.xFrac = Math.random();
+        }
+        const sway = Math.sin(t * 0.9 + n.seed) * n.sway;
+        n.mesh.position.set(n.xFrac * W + sway, n.yFrac * H, 0);
+        n.mesh.rotation.x += n.rotX * dt;
+        n.mesh.rotation.y += n.rotY * dt;
+      });
+    } else {
+      notesGroup.visible = false;
+    }
 
     const activeCount = Math.max(20, Math.round(count * liveDensity));
     const spd = speedFactor * (0.7 + live.turbulence * 0.6);
