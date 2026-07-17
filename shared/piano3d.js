@@ -721,6 +721,37 @@ export function createGrandPiano3D(container, options = {}) {
   moodLight.target.position.set(0.8, 0.62, 1.4);
   scene.add(moodLight, moodLight.target);
 
+  // The actual visible beam — a SpotLight only illuminates surfaces it
+  // hits, it doesn't render as a shaft of light in the air, so without
+  // this the "colored light from above, cone-like" mood cue was invisible
+  // except as a faint tint on the piano itself. Two nested translucent,
+  // additively-blended cones (tight bright core + soft wide halo) sharing
+  // the same straight-down axis as moodLight above, faded in step with it
+  // in setMood(). depthWrite is off so overlapping cone geometry doesn't
+  // self-occlude or fight the piano's opaque depth buffer.
+  function makeMoodCone(radius, height, color) {
+    const geo = new THREE.ConeGeometry(radius, height, 28, 1, true);
+    geo.translate(0, -height / 2, 0); // apex at local y=0, base extends down to -height
+    const mat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    return new THREE.Mesh(geo, mat);
+  }
+  const MOOD_CONE_HEIGHT = 5.2;
+  const moodConeGroup = new THREE.Group();
+  moodConeGroup.position.set(0.8, 5.9, 1.4); // apex — same x/z as moodLight, high above the piano
+  const moodConeInner = makeMoodCone(0.4, MOOD_CONE_HEIGHT, 0xb98cff);
+  const moodConeOuter = makeMoodCone(0.85, MOOD_CONE_HEIGHT, 0xb98cff);
+  moodConeGroup.add(moodConeOuter, moodConeInner);
+  scene.add(moodConeGroup);
+  const MOOD_CONE_INNER_PEAK = 0.24;
+  const MOOD_CONE_OUTER_PEAK = 0.1;
+
   // ---- resize handling ----
   function resize() {
     const w = container.clientWidth || 1;
@@ -770,15 +801,27 @@ export function createGrandPiano3D(container, options = {}) {
   // theater lighting cue rather than a hard color-pop mid-transition.
   function setMood(hexColor, targetIntensity = 95, duration = 1.4) {
     gsap.killTweensOf(moodLight);
+    gsap.killTweensOf(moodConeInner.material);
+    gsap.killTweensOf(moodConeOuter.material);
     if (hexColor == null) {
       gsap.to(moodLight, { intensity: 0, duration: duration * 0.6, ease: 'power2.in' });
+      gsap.to(moodConeInner.material, { opacity: 0, duration: duration * 0.6, ease: 'power2.in' });
+      gsap.to(moodConeOuter.material, { opacity: 0, duration: duration * 0.6, ease: 'power2.in' });
       return;
     }
     gsap
       .timeline()
       .to(moodLight, { intensity: 0, duration: duration * 0.35, ease: 'power2.in' })
-      .call(() => moodLight.color.set(hexColor))
-      .to(moodLight, { intensity: targetIntensity, duration: duration * 0.65, ease: 'power2.out' });
+      .to(moodConeInner.material, { opacity: 0, duration: duration * 0.35, ease: 'power2.in' }, '<')
+      .to(moodConeOuter.material, { opacity: 0, duration: duration * 0.35, ease: 'power2.in' }, '<')
+      .call(() => {
+        moodLight.color.set(hexColor);
+        moodConeInner.material.color.set(hexColor);
+        moodConeOuter.material.color.set(hexColor);
+      })
+      .to(moodLight, { intensity: targetIntensity, duration: duration * 0.65, ease: 'power2.out' })
+      .to(moodConeInner.material, { opacity: MOOD_CONE_INNER_PEAK, duration: duration * 0.65, ease: 'power2.out' }, '<')
+      .to(moodConeOuter.material, { opacity: MOOD_CONE_OUTER_PEAK, duration: duration * 0.65, ease: 'power2.out' }, '<');
   }
 
   function flyTo(presetName, duration = 1.6) {
