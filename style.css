@@ -1327,6 +1327,53 @@ main {
 }
 
 /* -------------------------------------------------------------------------
+   Recital mood — dark-text override for hero/about/math-physics
+   ------------------------------------------------------------------------- */
+/* The per-song background wash (scene3d.js's setTint, see main.js) is
+   deliberately global — the user confirmed they like it carrying through
+   reading/contact while a song plays and asked to keep those exactly as
+   they are. But the same wash read as visually overwhelming specifically
+   against hero/about/math-physics's light text (their own diagnosis and
+   requested fix) — so while ANY song is playing (main.js toggles
+   `body.recital-mood-active`), these three sections' text goes dark
+   instead of the wash getting scoped down. Reading and contact are
+   deliberately NOT touched here.
+   `:not(.lit)` on the hero title letters specifically excludes whichever
+   letter the cursor-glow (reactiveLetters.js) currently has lit — that
+   rule's `.ch.lit` selector has equal specificity otherwise, and without
+   the exclusion this dark override (carrying #hero's ID) would win and
+   the hover-glow would stop working while a song plays. */
+body.recital-mood-active #hero .hero-title .ch:not(.lit) {
+  color: #14121c;
+}
+body.recital-mood-active #hero .eyebrow,
+body.recital-mood-active #hero .hero-tagline,
+body.recital-mood-active #hero .hero-cue {
+  color: #332f42;
+  transition: color 0.6s ease;
+}
+body.recital-mood-active #about .section-title,
+body.recital-mood-active #math-physics .section-title {
+  color: #14121c;
+  transition: color 0.6s ease;
+}
+body.recital-mood-active #about .section-sub,
+body.recital-mood-active #math-physics .section-sub,
+body.recital-mood-active #about .section-index,
+body.recital-mood-active #math-physics .section-index {
+  color: #332f42;
+  transition: color 0.6s ease;
+}
+body.recital-mood-active #about .key-area-card .ka-label {
+  color: #14121c;
+  transition: color 0.6s ease;
+}
+body.recital-mood-active #about .key-area-card .ka-index {
+  color: #332f42;
+  transition: color 0.6s ease;
+}
+
+/* -------------------------------------------------------------------------
    Reduced motion
    ------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {

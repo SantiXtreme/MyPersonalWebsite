@@ -560,10 +560,6 @@ if (REDUCED) {
   gsap.to(piano.root.rotation, { y: 0.03, duration: 6, ease: 'sine.inOut', yoyo: true, repeat: -1 });
 }
 
-function setExposure(v, d = 1.2) {
-  gsap.to(piano.renderer, { toneMappingExposure: v, duration: d, ease: 'power2.inOut' });
-}
-
 /* =========================================================================
    12 · RECITAL PLAYER (3 songs) — per-piece color flows through onNote;
    starting playback flies the camera in on the keys (replaces the old
@@ -596,15 +592,11 @@ const player = createRecitalPlayer({
 
     if (!REDUCED) {
       const moodColor = s.playing ? MOOD_COLORS[s.songId] ?? MOOD_COLORS.default : null;
-      if (activeConcept === 'A') {
-        if (s.playing) {
-          piano.flyTo('keys', 1.6);
-          setExposure(0.85);
-        } else {
-          piano.flyTo('hero', 1.4);
-          setExposure(lerp(0.62, 1.08, dollyProgress));
-        }
-      } else {
+      // No more camera fly-to-keys on play — the user's call: the piano
+      // geometry doesn't hold up under that close a look, so playback no
+      // longer changes the camera at all; it just stays wherever the
+      // scroll-driven dolly (applyDolly, below) already has it.
+      if (activeConcept !== 'A') {
         pianoB.setPlaying(s.playing);
       }
       // Background reaction, concept-agnostic — replaces an earlier visible
@@ -616,6 +608,14 @@ const player = createRecitalPlayer({
       // both the wrong read on "floating 3D" and a real perf bug (mutating
       // CSS top/left every frame) — see scene3d.js for the real fix.
       field.setTint(moodColor, 999999);
+      // The background wash is intentionally global (not scoped to
+      // #recital) — the user confirmed they like it carrying through
+      // reading/contact while a song plays. But it reads as visually
+      // overwhelming against hero/about/math-physics's light text
+      // specifically (their own request) — reading and contact are
+      // explicitly excluded, they're fine as-is. See the
+      // .recital-mood-active rules in style.css.
+      document.body.classList.toggle('recital-mood-active', s.playing);
     }
   },
 });
