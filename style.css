@@ -228,12 +228,17 @@ main {
   /* A layered nebula rather than one flat glow — several soft blue/indigo
      blooms at different positions and sizes, evoking real deep-sky nebula
      photography without pulling in a new color family (still the site's
-     blue identity, just richer). */
+     blue identity, just richer). Two extra faint wisps (cyan, violet) add
+     depth without reading as new colors, and a slow breathing animation
+     (nebula-drift below) keeps it from feeling like a static poster. */
   background:
     radial-gradient(90% 70% at 50% 8%, rgba(111, 163, 255, 0.18), transparent 60%),
     radial-gradient(55% 45% at 14% 62%, rgba(80, 140, 255, 0.12), transparent 65%),
     radial-gradient(45% 40% at 88% 22%, rgba(150, 120, 255, 0.1), transparent 68%),
+    radial-gradient(32% 28% at 68% 58%, rgba(120, 205, 255, 0.08), transparent 70%),
+    radial-gradient(26% 22% at 8% 14%, rgba(170, 145, 255, 0.07), transparent 70%),
     radial-gradient(120% 120% at 50% 50%, transparent 50%, rgba(6, 9, 20, 0.82) 100%);
+  animation: nebula-drift 22s ease-in-out infinite alternate;
 }
 #projects::before {
   background:
@@ -259,6 +264,20 @@ main {
   background:
     radial-gradient(70% 60% at 50% 30%, rgba(231, 184, 120, 0.16), transparent 62%),
     linear-gradient(180deg, rgba(10, 8, 16, 0.5), rgba(7, 6, 12, 0.9));
+}
+
+/* Slow "breathing" pulse for the hero/about nebula backgrounds — opacity
+   and a faint scale drift, cheap enough to run indefinitely, disabled
+   under prefers-reduced-motion below. */
+@keyframes nebula-drift {
+  0% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -932,12 +951,17 @@ main {
   /* Deliberately warm (violet/rose) against the hero's cool blues right
      above it — contrast, not a repeat. No green/radioactive tones. Same
      "layered nebula" treatment as hero (a third soft bloom, warm amber
-     this time) so both read as cosmic/spacelike without being identical. */
+     this time) so both read as cosmic/spacelike without being identical.
+     Two extra faint wisps (magenta, warm gold) add depth within the same
+     warm family, plus the same slow breathing animation as hero. */
   background:
     radial-gradient(85% 65% at 50% 0%, rgba(220, 160, 255, 0.14), transparent 62%),
     radial-gradient(70% 60% at 85% 90%, rgba(255, 158, 158, 0.1), transparent 65%),
     radial-gradient(50% 40% at 10% 30%, rgba(255, 190, 140, 0.08), transparent 66%),
+    radial-gradient(28% 24% at 46% 56%, rgba(255, 130, 195, 0.07), transparent 70%),
+    radial-gradient(24% 20% at 72% 18%, rgba(255, 205, 150, 0.06), transparent 70%),
     radial-gradient(120% 120% at 50% 50%, transparent 40%, rgba(19, 10, 24, 0.82) 100%);
+  animation: nebula-drift 26s ease-in-out infinite alternate;
 }
 .key-area-grid {
   display: grid;
@@ -1324,6 +1348,10 @@ main {
   }
   .reactive-cloud {
     display: none;
+  }
+  #hero::before,
+  #about::before {
+    animation: none;
   }
   * {
     scroll-behavior: auto !important;
