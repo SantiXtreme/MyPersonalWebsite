@@ -6,9 +6,13 @@ dist/
 # Local mood-reference screenshots — never shipped, see CLAUDE.md
 design-reference/
 
-# Raw source screen recording (~100MB) that was transcoded down into
-# assets/hobbies/elden-ring-bg.mp4 — the shipped asset is the small one.
+# Elden Ring footage — a screen recording of DS Cinematics' fan cinematic.
+# It's someone else's copyrighted video, so it is deliberately NOT tracked or
+# published here; sections/eldenRingBg.js uses the official YouTube embed
+# instead. Both files stay local so the offline variant can be rebuilt if
+# ever needed. See the "never rip or rehost" ground rule in CLAUDE.md.
 Grabaci*.mp4
+assets/hobbies/elden-ring-bg.mp4
 
 # Unrelated coursework / scratch files that live in this folder by accident
 Unit 8 Writing Assignment and Rubric.pdf

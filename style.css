@@ -1230,7 +1230,7 @@ main {
 }
 
 /* -------------------------------------------------------------------------
-   Hobbies background — the user's own local video (see sections/eldenRingBg.js)
+   Hobbies background — the Elden Ring embed (see sections/eldenRingBg.js)
    ------------------------------------------------------------------------- */
 .hobbies-bg {
   position: absolute;
@@ -1240,21 +1240,28 @@ main {
 }
 .eldenring-bg-frame {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  min-width: 178vh; /* 16:9 cover-crop regardless of viewport aspect ratio */
+  min-height: 56.25vw;
+  transform: translate(-50%, -50%);
   pointer-events: none;
-  /* Hidden until the video reports canplay — avoids a one-frame flash of
-     an unpainted element on slow loads. */
+  /* Hidden until sections/eldenRingBg.js confirms real PLAYING state —
+     YouTube's own loading/cued-state UI (title card, pause icon) would
+     otherwise show through here regardless of controls:0. */
   opacity: 0;
   transition: opacity 0.6s ease;
 }
 .eldenring-bg-frame.ready {
   opacity: 1;
 }
-.eldenring-bg-frame video {
+.eldenring-bg-frame iframe {
   width: 100%;
   height: 100%;
-  object-fit: cover;
   display: block;
+  border: 0;
 }
 
 /* -------------------------------------------------------------------------
