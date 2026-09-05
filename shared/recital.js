@@ -240,13 +240,40 @@ function loadSoundCloudAPI() {
 }
 
 // ---------------------------------------------------------------------
+// Neither the YouTube IFrame API script nor the SoundCloud widget's READY
+// event carry any built-in failure signal — if the API script never loads
+// (blocked host, ad blocker, a flaky connection) the promises awaited below
+// simply never settle. Without a bound on that wait, load() never resolves
+// OR rejects, so main.js's click handler (loadingSong = true until its
+// try/finally settles) gets stuck forever — every subsequent song click,
+// including picking a totally unrelated local song, silently no-ops. This is
+// the real cause behind "Liebestraum's background only works if it's picked
+// first": whichever song is clicked first always works fine, but if an
+// earlier click on Experience/If I Am With You ever hangs, nothing after it
+// can ever load again without a full page reload. Confirmed via a live
+// repro in this exact sequence before writing this fix.
+const EMBED_TIMEOUT_MS = 9000;
+function withTimeout(promise, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out`)), EMBED_TIMEOUT_MS)),
+  ]);
+}
+
 export function createRecitalPlayer({ mediaContainer, onNote = () => {}, onStateChange = () => {} }) {
   let activeSongId = null;
   let cleanupFns = [];
   let performer = null; // generative or reactive-analyser instance
   let isPlaying = false;
+  // Bumped on every teardown so a late-firing event from an embed that was
+  // still spinning up when the user moved on (e.g. a YouTube player whose
+  // onReady/onStateChange fires well after its load() already timed out)
+  // can tell it's orphaned and ignore itself, instead of stomping the
+  // currently active song's status/tint with stale data.
+  let loadToken = 0;
 
   function teardown() {
+    loadToken++;
     performer?.stop();
     performer?.dispose?.();
     performer = null;
@@ -258,6 +285,7 @@ export function createRecitalPlayer({ mediaContainer, onNote = () => {}, onState
 
   async function load(songId) {
     teardown();
+    const myToken = loadToken;
     const song = SONGS.find((s) => s.id === songId);
     if (!song) throw new Error(`Unknown song: ${songId}`);
     activeSongId = songId;
@@ -310,29 +338,33 @@ export function createRecitalPlayer({ mediaContainer, onNote = () => {}, onState
     if (song.type === 'youtube') {
       const holder = document.createElement('div');
       if (mediaContainer) mediaContainer.appendChild(holder);
-      const YT = await loadYouTubeAPI();
-      const player = await new Promise((resolve) => {
-        const p = new YT.Player(holder, {
-          videoId: song.youtubeId,
-          width: '100%',
-          height: '220',
-          playerVars: { rel: 0, modestbranding: 1 },
-          events: {
-            onReady: () => resolve(p),
-            onStateChange: (e) => {
-              if (e.data === YT.PlayerState.PLAYING) {
-                performer?.start();
-                isPlaying = true;
-                onStateChange({ playing: true, songId });
-              } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
-                performer?.stop();
-                isPlaying = false;
-                onStateChange({ playing: false, ended: e.data === YT.PlayerState.ENDED, songId });
-              }
+      const YT = await withTimeout(loadYouTubeAPI(), 'YouTube API');
+      const player = await withTimeout(
+        new Promise((resolve) => {
+          const p = new YT.Player(holder, {
+            videoId: song.youtubeId,
+            width: '100%',
+            height: '220',
+            playerVars: { rel: 0, modestbranding: 1 },
+            events: {
+              onReady: () => resolve(p),
+              onStateChange: (e) => {
+                if (myToken !== loadToken) return; // orphaned player, superseded — see file header note
+                if (e.data === YT.PlayerState.PLAYING) {
+                  performer?.start();
+                  isPlaying = true;
+                  onStateChange({ playing: true, songId });
+                } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) {
+                  performer?.stop();
+                  isPlaying = false;
+                  onStateChange({ playing: false, ended: e.data === YT.PlayerState.ENDED, songId });
+                }
+              },
             },
-          },
-        });
-      });
+          });
+        }),
+        'YouTube player'
+      );
       cleanupFns.push(() => player.destroy?.());
       performer = createGenerativePerformer(onNote, profile); // Einaudi-esque: sparse, spacious (see PERFORMANCE_PROFILES.experience)
 
@@ -351,20 +383,23 @@ export function createRecitalPlayer({ mediaContainer, onNote = () => {}, onState
       iframe.allow = 'autoplay';
       iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23e8c873&auto_play=false&show_teaser=false`;
       if (mediaContainer) mediaContainer.appendChild(iframe);
-      const SC = await loadSoundCloudAPI();
+      const SC = await withTimeout(loadSoundCloudAPI(), 'SoundCloud API');
       const widget = SC.Widget(iframe);
-      await new Promise((resolve) => widget.bind(SC.Widget.Events.READY, resolve));
+      await withTimeout(new Promise((resolve) => widget.bind(SC.Widget.Events.READY, resolve)), 'SoundCloud widget');
       widget.bind(SC.Widget.Events.PLAY, () => {
+        if (myToken !== loadToken) return; // orphaned widget, superseded — see file header note
         performer?.start();
         isPlaying = true;
         onStateChange({ playing: true, songId });
       });
       widget.bind(SC.Widget.Events.PAUSE, () => {
+        if (myToken !== loadToken) return;
         performer?.stop();
         isPlaying = false;
         onStateChange({ playing: false, songId });
       });
       widget.bind(SC.Widget.Events.FINISH, () => {
+        if (myToken !== loadToken) return;
         performer?.stop();
         isPlaying = false;
         onStateChange({ playing: false, ended: true, songId });

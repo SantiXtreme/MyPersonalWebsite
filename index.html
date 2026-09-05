@@ -19,17 +19,8 @@
     <canvas id="field"></canvas>
     <div id="grain" aria-hidden="true"></div>
 
-    <!-- Fixed 3D piano stage — the Recital section, Concept A -->
+    <!-- Fixed 3D piano stage — the Recital section -->
     <div id="piano-stage" aria-hidden="true"><div id="piano-mount"></div></div>
-
-    <!-- TEMPORARY — review-only toggle between the two Recital concepts.
-         Delete this whole block plus whichever concept isn't picked once
-         a decision is made. -->
-    <div id="recital-concept-toggle" class="concept-toggle">
-      <span class="concept-toggle-label">Recital concept</span>
-      <button type="button" class="concept-btn" data-concept="A">A · 3D piano</button>
-      <button type="button" class="concept-btn" data-concept="B">B · Illustrated</button>
-    </div>
 
     <!-- Torchlight cursor reveal, used only over #machine-learning -->
     <div id="torch" aria-hidden="true"></div>
@@ -125,11 +116,6 @@
 
       <!-- 05 · RECITAL (piano) -->
       <section id="recital" class="scene piano-act" data-scene="recital" data-label="Piano">
-        <!-- Concept B mount (shared/pianoIllustrated.js) — a flat SVG
-             piano, alternative to the fixed 3D #piano-stage below, for
-             side-by-side comparison. Toggled by main.js's temporary
-             concept switcher; remove whichever concept isn't picked. -->
-        <div class="piano-illustrated-mount" id="piano-illustrated-mount" aria-hidden="true"></div>
         <div class="recital-inner">
           <header class="section-head on-dark">
             <span class="section-index">05</span>

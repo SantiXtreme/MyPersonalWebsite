@@ -37,7 +37,6 @@ import {
   books,
 } from './shared/content.js';
 import { createGrandPiano3D, CAMERA_PRESETS } from './shared/piano3d.js';
-import { createIllustratedPiano } from './shared/pianoIllustrated.js';
 import { createRecitalPlayer, SONGS } from './shared/recital.js';
 import { createMotionField } from './scene3d.js';
 import { createNeuralNet } from './sections/neuralNet.js';
@@ -435,11 +434,7 @@ ScrollTrigger.create({
 });
 
 /* =========================================================================
-   11 · THE RECITAL VISUAL — two concepts, temporarily both wired in for
-   side-by-side comparison (see #recital-concept-toggle). Concept A is the
-   3D piano (shared/piano3d.js); Concept B is a flat illustrated piano
-   (shared/pianoIllustrated.js). Once one is picked, delete this toggle and
-   the other concept's module/markup/CSS entirely.
+   11 · THE 3D PIANO STAGE
    ========================================================================= */
 const pianoMount = $('#piano-mount');
 const piano = createGrandPiano3D(pianoMount, {
@@ -454,8 +449,6 @@ const piano = createGrandPiano3D(pianoMount, {
 // piano would render its full PBR scene every frame from page load until
 // the user happened to scroll through the recital section once.
 piano.pause();
-
-const pianoB = createIllustratedPiano($('#piano-illustrated-mount'), { accentColor: '#e7b878' });
 
 // Background reaction color per recital piece (ambient particle tint +
 // flowing notes, see the recital player's onStateChange below) — a dreamy
@@ -482,39 +475,14 @@ function pulseAccent(v = 0.8, color) {
 }
 
 const stage = $('#piano-stage');
-const piBMount = $('#piano-illustrated-mount');
-let activeConcept = localStorage.getItem('recitalConcept') === 'B' ? 'B' : 'A';
 let recitalInView = false;
 
-function syncConceptRuntime() {
-  const showA = activeConcept === 'A';
-  stage.style.display = showA ? '' : 'none';
-  piBMount.style.display = showA ? 'none' : '';
-  if (showA) {
-    gsap.to(stage, { opacity: recitalInView ? 1 : 0, duration: 0.4, ease: 'power2.out' });
-    if (recitalInView) piano.resume();
-    else piano.pause();
-    pianoB.deactivate();
-  } else {
-    if (recitalInView) pianoB.activate();
-    else pianoB.deactivate();
-    piano.pause();
-  }
+function syncPianoVisibility() {
+  gsap.to(stage, { opacity: recitalInView ? 1 : 0, duration: 0.4, ease: 'power2.out' });
+  if (recitalInView) piano.resume();
+  else piano.pause();
 }
-syncConceptRuntime();
-
-const conceptToggle = $('#recital-concept-toggle');
-if (conceptToggle) {
-  $$('.concept-btn', conceptToggle).forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.concept === activeConcept);
-    btn.addEventListener('click', () => {
-      activeConcept = btn.dataset.concept;
-      localStorage.setItem('recitalConcept', activeConcept);
-      $$('.concept-btn', conceptToggle).forEach((b) => b.classList.toggle('active', b === btn));
-      syncConceptRuntime();
-    });
-  });
-}
+syncPianoVisibility();
 
 ScrollTrigger.create({
   trigger: '#recital',
@@ -522,7 +490,7 @@ ScrollTrigger.create({
   end: 'bottom 15%',
   onToggle: (self) => {
     recitalInView = self.isActive;
-    syncConceptRuntime();
+    syncPianoVisibility();
   },
 });
 
@@ -575,8 +543,7 @@ const tStatus = $('#t-status');
 const player = createRecitalPlayer({
   mediaContainer: media,
   onNote: (midi, opts) => {
-    if (activeConcept === 'A') piano.pressKey(midi, opts);
-    else pianoB.pressKey(midi, opts);
+    piano.pressKey(midi, opts);
     pulseAccent(opts?.velocity ?? 0.8, opts?.color);
     field.burst(window.innerWidth * 0.7, window.innerHeight * 0.55, {
       count: 6,
@@ -596,10 +563,7 @@ const player = createRecitalPlayer({
       // geometry doesn't hold up under that close a look, so playback no
       // longer changes the camera at all; it just stays wherever the
       // scroll-driven dolly (applyDolly, below) already has it.
-      if (activeConcept !== 'A') {
-        pianoB.setPlaying(s.playing);
-      }
-      // Background reaction, concept-agnostic — replaces an earlier visible
+      // Background reaction — replaces an earlier visible
       // spotlight-cone attempt over the piano itself ("the light does not
       // [look great]"). One call drives it all now (scene3d.js): the
       // persistent field's clear color washes to the song's color (the

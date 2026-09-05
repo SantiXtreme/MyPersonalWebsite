@@ -27,6 +27,7 @@
 
 import * as THREE from 'three';
 import gsap from 'gsap';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const WHITE_KEY_LEN = 0.15; // meters, visible length of a white key
 const WHITE_KEY_WIDTH = 0.0235;
@@ -202,10 +203,25 @@ export function createGrandPiano3D(container, options = {}) {
   camera.position.set(...preset.pos);
   camera.lookAt(...preset.look);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // antialias:false + a lower pixel-ratio cap (was true / 2, uncapped on
+  // most 2x-DPI laptops) — measured this scene at ~3x the frame cost of
+  // every other section on the page (recital averaged ~670ms/frame vs.
+  // ~200-260ms elsewhere in the same sandbox, a real, isolated outlier, not
+  // just "software rendering is slow everywhere"). MSAA is a well-known
+  // expensive feature on top of an already-heavy PBR+shadow scene; the
+  // persistent field's own renderer already made this exact antialias:false
+  // + capped-pixel-ratio tradeoff for the same reason (see scene3d.js).
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  // BasicShadowMap (hard-edged, single-sample) instead of PCFShadowMap
+  // (multi-tap filtered) — measured PCF costing a real, if modest, slice of
+  // this scene's frame time on top of the antialias/pixel-ratio fix above.
+  // The shadow here is mostly a soft ambient "grounding" contact shadow
+  // under the piano (the Reflector mirror was already removed in an
+  // earlier phase for an unrelated software-rendering artifact), not a
+  // hero visual detail depending on soft penumbra.
+  renderer.shadowMap.type = THREE.BasicShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = exposure;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -371,16 +387,25 @@ export function createGrandPiano3D(container, options = {}) {
   // cylinder reads as a flat haze from above; the break at the bridge is
   // what makes the strings look like they're resting on something rather
   // than floating in a plane.
-  function makeString(start, end, radius) {
+  // Strings are entirely static (never individually animated — only the
+  // keys are), so all 120 segments are baked into ONE merged geometry/mesh
+  // instead of 120 separate THREE.Mesh objects. This sandbox's software
+  // renderer is disproportionately sensitive to draw-call count (the same
+  // reasoning scene3d.js's floating notes already document) — 120 separate
+  // draw calls for strings alone was a real, measured contributor to the
+  // recital section running ~3x slower than every other section on the
+  // page (671ms/frame vs. ~200-260ms elsewhere, isolated via a live
+  // frame-timing comparison before this fix).
+  function makeStringGeometry(start, end, radius) {
     const dir = new THREE.Vector3().subVectors(end, start);
     const geo = new THREE.CylinderGeometry(radius, radius, dir.length(), 6);
-    const mesh = new THREE.Mesh(geo, stringMat);
-    mesh.position.copy(start).addScaledVector(dir, 0.5);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-    return mesh;
+    const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    const pos = start.clone().addScaledVector(dir, 0.5);
+    geo.applyMatrix4(new THREE.Matrix4().compose(pos, quat, new THREE.Vector3(1, 1, 1)));
+    return geo;
   }
   const STRING_COUNT = 60;
-  const stringsGroup = new THREE.Group();
+  const stringGeos = [];
   const tuningPinPts = [];
   const bridgePts = [];
   const hitchPinPts = [];
@@ -399,13 +424,14 @@ export function createGrandPiano3D(container, options = {}) {
     const bridgeFrac = lerp(0.86, 0.8, t);
     const bridge = start.clone().lerp(end, bridgeFrac);
     bridge.y = 0.752; // proud of the soundboard (0.741), under the plate's underside
-    stringsGroup.add(makeString(start, bridge, radius));
-    stringsGroup.add(makeString(bridge, end, radius));
+    stringGeos.push(makeStringGeometry(start, bridge, radius));
+    stringGeos.push(makeStringGeometry(bridge, end, radius));
     tuningPinPts.push(start.clone().add(new THREE.Vector3(0, -0.012, -0.02)));
     bridgePts.push(bridge);
     hitchPinPts.push(end.clone().add(new THREE.Vector3(0, 0.004, 0.012)));
   }
-  root.add(stringsGroup);
+  const stringsMesh = new THREE.Mesh(mergeGeometries(stringGeos), stringMat);
+  root.add(stringsMesh);
 
   // Tuning pins (wrestplank row) + hitch pins (tail rail) — small steel
   // pegs following the same front/tail anchor points the strings use, so
@@ -413,22 +439,25 @@ export function createGrandPiano3D(container, options = {}) {
   // string gets a hitch pin; only every other gets a tuning pin (real
   // ones are tightly packed enough that this still reads as a dense row
   // without doubling the pin count for no visible gain at this scale).
-  const pinsGroup = new THREE.Group();
+  // All static and sharing one material (pinMat) — merged into one mesh
+  // for the same draw-call reason as the strings above.
   const tuningPinGeo = new THREE.CylinderGeometry(0.0026, 0.0026, 0.02, 6);
   const hitchPinGeo = new THREE.CylinderGeometry(0.0016, 0.0016, 0.012, 6);
+  const pinGeos = [];
+  const tiltQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(-6), 0, 0));
   tuningPinPts.forEach((p, i) => {
     if (i % 2 === 1) return;
-    const pin = new THREE.Mesh(tuningPinGeo, pinMat);
-    pin.position.copy(p);
-    pin.rotation.x = THREE.MathUtils.degToRad(-6);
-    pinsGroup.add(pin);
+    const geo = tuningPinGeo.clone();
+    geo.applyMatrix4(new THREE.Matrix4().compose(p, tiltQuat, new THREE.Vector3(1, 1, 1)));
+    pinGeos.push(geo);
   });
   hitchPinPts.forEach((p) => {
-    const pin = new THREE.Mesh(hitchPinGeo, pinMat);
-    pin.position.copy(p);
-    pinsGroup.add(pin);
+    const geo = hitchPinGeo.clone();
+    geo.applyMatrix4(new THREE.Matrix4().makeTranslation(p.x, p.y, p.z));
+    pinGeos.push(geo);
   });
-  root.add(pinsGroup);
+  const pinsMesh = new THREE.Mesh(mergeGeometries(pinGeos), pinMat);
+  root.add(pinsMesh);
 
   // Duplex/capo bar — traces the same front-edge points the tuning pins
   // use, so it stays glued to the string row exactly rather than being
@@ -699,7 +728,7 @@ export function createGrandPiano3D(container, options = {}) {
   key.position.set(2.4, 3.4, 1.6);
   key.target.position.set(0.7, 0.6, 1.3);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.mapSize.set(768, 768);
   key.shadow.bias = -0.0015;
   scene.add(key, key.target);
 

@@ -551,94 +551,8 @@ main {
 }
 
 /* -------------------------------------------------------------------------
-   TEMPORARY — Recital concept A/B review toggle. Delete with the toggle
-   markup in index.html once a concept is picked.
-   ------------------------------------------------------------------------- */
-.concept-toggle {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  z-index: 80;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(10, 8, 12, 0.78);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
-}
-.concept-toggle-label {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding-left: 4px;
-}
-.concept-btn {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink-dim);
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-.concept-btn.active {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: #17111b;
-}
-
-/* -------------------------------------------------------------------------
    Recital
    ------------------------------------------------------------------------- */
-/* Concept B (shared/pianoIllustrated.js) — sticky like .recital-inner so
-   it stays pinned behind the header/panel content across the section's
-   scroll range, the same way the fixed 3D #piano-stage does for Concept A. */
-.piano-illustrated-mount {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  margin-bottom: -100vh; /* don't consume layout height of its own */
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  pointer-events: none;
-}
-.piano-illustrated {
-  width: min(46vw, 600px);
-  margin-left: clamp(2vw, 4vw, 60px);
-}
-.pi-svg {
-  width: 100%;
-  height: auto;
-  overflow: visible;
-  filter: drop-shadow(0 30px 55px rgba(0, 0, 0, 0.55));
-}
-.pi-body {
-  transition: filter 0.4s ease;
-}
-.pi-leg {
-  fill: #0c0a0e;
-  stroke: #000;
-  stroke-width: 0.4;
-}
-.pi-key {
-  transition: fill 0.2s ease;
-}
-.pi-key-white {
-  fill: #f2ede2;
-}
-.pi-key-black {
-  fill: #0a0a0c;
-  stroke: #000;
-  stroke-width: 0.2;
-}
-
 .recital-inner {
   width: 100%;
   max-width: var(--maxw);
@@ -950,9 +864,17 @@ main {
      "layered nebula" treatment as hero (a third soft bloom, warm amber
      this time) so both read as cosmic/spacelike without being identical.
      Two extra faint wisps (magenta, warm gold) add depth within the same
-     warm family, plus the same slow breathing animation as hero. */
+     warm family, plus the same slow breathing animation as hero.
+     The top bloom is deliberately pulled down off the very top edge (was
+     "at 50% 0%") and dimmed — hero's own bottom fades to near-black (its
+     vignette's dark stop), so a bright bloom sitting exactly at About's
+     top edge collided with it as a hard brightness jump right at the
+     section seam, reading as a "cut" between two different styles rather
+     than a continuous scroll. Now the quasar (scene3d.js) is About's own
+     bright centerpiece anyway — this layer just needs to set the mood,
+     not compete with it. */
   background:
-    radial-gradient(85% 65% at 50% 0%, rgba(220, 160, 255, 0.14), transparent 62%),
+    radial-gradient(85% 60% at 50% 16%, rgba(220, 160, 255, 0.09), transparent 62%),
     radial-gradient(70% 60% at 85% 90%, rgba(255, 158, 158, 0.1), transparent 65%),
     radial-gradient(50% 40% at 10% 30%, rgba(255, 190, 140, 0.08), transparent 66%),
     radial-gradient(28% 24% at 46% 56%, rgba(255, 130, 195, 0.07), transparent 70%),
@@ -975,7 +897,16 @@ main {
   padding: clamp(20px, 2.4vw, 30px) clamp(16px, 2vw, 22px);
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  /* A real dark backing (not just a faint 0.01-0.04 tint) so the card text
+     stays legible against the About quasar behind it — that background is
+     meant to show through, not hide, so the card needs its own contrast
+     rather than relying on opacity to block the busier backdrop.
+     Deliberately not backdrop-filter: blur() here — that forces a full
+     backdrop re-sample every frame the persistent particle field behind it
+     animates (i.e. constantly, for as long as any card is on screen), which
+     is exactly the kind of per-frame cost this round is trying to remove,
+     not add. A solid-enough gradient gets the same legibility for free. */
+  background: linear-gradient(160deg, rgba(19, 14, 26, 0.72), rgba(14, 10, 20, 0.62));
   cursor: pointer;
   text-align: left;
   color: inherit;
@@ -1327,7 +1258,7 @@ main {
 }
 
 /* -------------------------------------------------------------------------
-   Recital mood — dark-text override for hero/about/math-physics
+   Recital mood — dark-text override for hero/math-physics
    ------------------------------------------------------------------------- */
 /* The per-song background wash (scene3d.js's setTint, see main.js) is
    deliberately global — the user confirmed they like it carrying through
@@ -1335,9 +1266,16 @@ main {
    they are. But the same wash read as visually overwhelming specifically
    against hero/about/math-physics's light text (their own diagnosis and
    requested fix) — so while ANY song is playing (main.js toggles
-   `body.recital-mood-active`), these three sections' text goes dark
-   instead of the wash getting scoped down. Reading and contact are
-   deliberately NOT touched here.
+   `body.recital-mood-active`), these sections' text goes dark instead of
+   the wash getting scoped down. Reading and contact are deliberately NOT
+   touched here.
+   About was REMOVED from this rule — About is now exempt from the wash
+   itself (scene3d.js's `spaceExempt`, the user's explicit "it has to be
+   space... even when playing a song" ask), so its background no longer
+   changes at all during playback. Kept darkening About's text against an
+   unchanged background would just read as low-contrast/broken rather than
+   intentional — confirmed by screenshot before this fix (dim gray "About"
+   title over the exact same quasar backdrop it always shows).
    `:not(.lit)` on the hero title letters specifically excludes whichever
    letter the cursor-glow (reactiveLetters.js) currently has lit — that
    rule's `.ch.lit` selector has equal specificity otherwise, and without
@@ -1352,23 +1290,12 @@ body.recital-mood-active #hero .hero-cue {
   color: #332f42;
   transition: color 0.6s ease;
 }
-body.recital-mood-active #about .section-title,
 body.recital-mood-active #math-physics .section-title {
   color: #14121c;
   transition: color 0.6s ease;
 }
-body.recital-mood-active #about .section-sub,
 body.recital-mood-active #math-physics .section-sub,
-body.recital-mood-active #about .section-index,
 body.recital-mood-active #math-physics .section-index {
-  color: #332f42;
-  transition: color 0.6s ease;
-}
-body.recital-mood-active #about .key-area-card .ka-label {
-  color: #14121c;
-  transition: color 0.6s ease;
-}
-body.recital-mood-active #about .key-area-card .ka-index {
   color: #332f42;
   transition: color 0.6s ease;
 }

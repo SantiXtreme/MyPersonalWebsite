@@ -28,6 +28,11 @@
 
 import eldenRingVideoUrl from '../assets/hobbies/elden-ring-bg.mp4';
 
+// Ranni's entrance in this clip lands around 0:11 — start (and loop) there
+// instead of 0:00 rather than trim the source file itself, so the full
+// recording stays intact if the start point ever needs retuning.
+const START_TIME = 11;
+
 export function createEldenRingBackground(container) {
   const frame = document.createElement('div');
   frame.className = 'eldenring-bg-frame';
@@ -40,16 +45,27 @@ export function createEldenRingBackground(container) {
     video = document.createElement('video');
     video.src = eldenRingVideoUrl;
     video.muted = true;
-    video.loop = true;
+    video.loop = false; // looping is handled manually below, seeking back to START_TIME not 0
     video.playsInline = true;
     video.preload = 'auto';
-    video.addEventListener('canplay', () => frame.classList.add('ready'), { once: true });
+    video.addEventListener('loadedmetadata', () => {
+      video.currentTime = START_TIME;
+    }, { once: true });
+    // Reveal only once the initial seek to START_TIME actually lands — using
+    // 'canplay' here instead would fade the frame in while it's still
+    // showing 0:00's thumbnail, a visible flash before the jump to 0:11.
+    video.addEventListener('seeked', () => frame.classList.add('ready'), { once: true });
+    video.addEventListener('ended', () => {
+      video.currentTime = START_TIME;
+      video.play().catch(() => {});
+    });
     frame.appendChild(video);
   }
 
   return {
     mount,
     play() {
+      if (video && video.currentTime < START_TIME) video.currentTime = START_TIME;
       video?.play().catch(() => {
         /* autoplay can be blocked before any user gesture — harmless,
            the section's own atmosphere gradient still reads fine */

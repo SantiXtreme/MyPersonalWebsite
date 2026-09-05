@@ -5,3 +5,11 @@ dist/
 
 # Local mood-reference screenshots — never shipped, see CLAUDE.md
 design-reference/
+
+# Raw source screen recording (~100MB) that was transcoded down into
+# assets/hobbies/elden-ring-bg.mp4 — the shipped asset is the small one.
+Grabaci*.mp4
+
+# Unrelated coursework / scratch files that live in this folder by accident
+Unit 8 Writing Assignment and Rubric.pdf
+regression.py

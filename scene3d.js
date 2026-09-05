@@ -290,6 +290,435 @@ export function createMotionField(canvas, options = {}) {
     scene.add(sigil);
   }
 
+  // ---- quasar (About section centerpiece) ----
+  // Rebuilt to match a real reference image the user supplied (quasar.jpeg,
+  // repo root) — a dusty edge-on torus with warm glow bleeding through its
+  // clumpy gaps, two wide flared blue-white jets, set against a dense
+  // starfield + diffuse plasma clouds. A real astronomical-illustration
+  // look, not the EHT/black-hole-photo look this replaced (dark shadow +
+  // thin photon ring) — a deliberate pivot once given a concrete reference,
+  // not a refinement of the old approach. Still lives in this same scene/
+  // composer (one WebGL context, one bloom pass — see file header) rather
+  // than a new canvas, fading in/out by sceneName exactly like the hero
+  // sigil above.
+  //
+  // Deliberately pushed toward MORE visual complexity per explicit
+  // instruction ("don't hesitate making it complex... if it's simple it's
+  // useless") while keeping the same cost discipline as before: animation
+  // lives in shader uniforms/vertex-color gradients wherever possible, not
+  // per-frame CPU buffer rewrites — confirmed by measurement afterward that
+  // none of this added measurable frame cost (see the lag-review notes).
+  const quasarGroup = new THREE.Group();
+  quasarGroup.visible = false;
+  scene.add(quasarGroup);
+
+  const Q_CORE_R = 0.1; // warm glow, visible through gaps in the dust torus
+  const Q_TORUS_INNER = 0.045;
+  const Q_TORUS_OUTER = 0.78; // the dominant central mass — bigger than a first pass had it,
+  // which read as too small next to the jets and nearly invisible against the dark backdrop
+  const Q_OUTER_R = 1.0; // overall reach — hot-spot orbit range, jet length reference
+  const Q_SQUASH = 0.42; // flattens the torus into an ellipse — a fixed
+  // "viewed from above" tilt, since this whole field is seen through a
+  // static orthographic camera with no true 3D perspective to fake it with.
+
+  // Radial center-bright-to-edge-black falloff baked into vertex colors —
+  // a vertex colored pure black contributes nothing under ADDITIVE
+  // blending, so this reads as a soft glow falloff with zero shader cost.
+  function radialFalloffColors(posAttr, maxR, color, power) {
+    const colors = new Float32Array(posAttr.count * 3);
+    for (let i = 0; i < posAttr.count; i++) {
+      const d = Math.sqrt(posAttr.getX(i) ** 2 + posAttr.getY(i) ** 2) / maxR;
+      const f = Math.pow(Math.max(0, 1 - d), power);
+      colors[i * 3] = color.r * f;
+      colors[i * 3 + 1] = color.g * f;
+      colors[i * 3 + 2] = color.b * f;
+    }
+    return new THREE.BufferAttribute(colors, 3);
+  }
+
+  // Central glow — layered warm white->gold->orange->red, additive, the
+  // light the dust torus (drawn on top, below) partially obscures.
+  function buildGlowGeometry() {
+    const layers = [
+      { r: 0.032, color: new THREE.Color(0xfffaf0), power: 1.3 },
+      { r: 0.06, color: new THREE.Color(0xffd9a0), power: 1.5 },
+      { r: 0.09, color: new THREE.Color(0xff9a4d), power: 1.8 },
+      { r: 0.13, color: new THREE.Color(0xd4502e), power: 2.1 },
+    ];
+    const geos = layers.map(({ r, color, power }) => {
+      const g = new THREE.CircleGeometry(r, 28);
+      g.setAttribute('color', radialFalloffColors(g.attributes.position, r, color, power));
+      return g;
+    });
+    return mergeGeometries(geos);
+  }
+  const glowMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+  });
+  const glow = new THREE.Mesh(buildGlowGeometry(), glowMat);
+  quasarGroup.add(glow);
+
+  // Dust torus — a REAL 3D volume (THREE.TorusGeometry, a genuine tube
+  // swept around a ring), not a flat painted disc. A first pass used a flat
+  // RingGeometry with a 2D noise texture, which — however clumpy the alpha
+  // pattern — could never actually read as volumetric; a flat shape lit
+  // uniformly has no roundness cue regardless of texture detail. This
+  // version shades each fragment against its own real surface normal (a
+  // fixed light direction, no scene THREE.Light needed — just a dot
+  // product in the fragment shader) so the tube visibly curves away into
+  // shadow on one side and catches light on the other, on top of the same
+  // clumpy FBM-noise dust texture as before. NORMAL blending (not additive)
+  // — real dust blocks light rather than adding to it.
+  const Q_TUBE_R = 0.36; // thick relative to the ring radius — a fat,
+  // puffy donut with a small hole, matching the reference's dense mass
+  // rather than a thin ring.
+  const torusFrag = /* glsl */ `
+    varying vec3 vPos3;
+    varying vec3 vNormal;
+    uniform float uTime, uOpacity, uDensity;
+    uniform vec3 uDust, uDustLit;
+    // A first pass used a plain sum of sines for the clump mask — cheap,
+    // but sine sums are inherently periodic and produced a visible
+    // repeating checkerboard/argyle grid instead of organic cloud texture
+    // (confirmed by screenshot). Replaced with a real value-noise FBM: a
+    // smoothed hash grid, fractal-summed across a few octaves with a
+    // rotation applied between each one specifically to break up any
+    // axis-aligned repetition — the standard fix for this exact artifact.
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+    }
+    float valueNoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      float a = hash(i);
+      float b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0));
+      float d = hash(i + vec2(1.0, 1.0));
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+    }
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float amp = 0.55;
+      mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+      for (int i = 0; i < 4; i++) {
+        v += amp * valueNoise(p);
+        p = rot * p * 2.03 + vec2(11.3, 5.7);
+        amp *= 0.52;
+      }
+      return v;
+    }
+    void main() {
+      vec2 p1 = vPos3.xy * 3.2 + vec2(uTime * 0.045, -uTime * 0.03);
+      float clumpRaw = fbm(p1); // roughly 0..1.1
+      float clump = smoothstep(0.24, 0.7, clumpRaw); // 0..1, contrast-boosted
+      // Fixed-direction fake lighting — a real vertex normal (from the
+      // actual 3D tube geometry) dotted against a constant light vector,
+      // no THREE.Light needed. This is what actually reads as "3D" (a
+      // curved surface rolling from lit to shadowed), not the texture.
+      vec3 lightDir = normalize(vec3(0.4, 0.6, 0.75));
+      float ndl = dot(normalize(vNormal), lightDir) * 0.5 + 0.5;
+      float shade = mix(0.4, 1.25, ndl); // ambient floor + a real highlight, not flat-lit
+      // Density: a high, user-requested floor (was a much wider 0.12-0.95
+      // range that read as thin/wispy) — this is meant to be a dense,
+      // substantial cloud mass with occasional bright gaps, not mostly gap.
+      float alpha = mix(uDensity, 0.98, clump) * uOpacity;
+      vec3 radialTint = mix(uDustLit, uDust, smoothstep(0.0, 0.5, length(vPos3.xy)));
+      vec3 col = mix(mix(uDustLit, radialTint, 0.4), radialTint, clump) * shade;
+      if (alpha < 0.02) discard;
+      gl_FragColor = vec4(col, alpha);
+    }
+  `;
+  const torusVert = /* glsl */ `
+    varying vec3 vPos3;
+    varying vec3 vNormal;
+    void main() {
+      vPos3 = position;
+      vNormal = normalize(normalMatrix * normal);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+  const torusMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+      uDensity: { value: 0.55 },
+      uDust: { value: new THREE.Color(0x5c5468) }, // brightened + cooled from a near-black brown —
+      // dark-over-dark under NormalBlending against this canvas's own near-black backdrop was
+      // reading as almost invisible; needs its own visible luminance to read as a silhouette at all
+      uDustLit: { value: new THREE.Color(0xb87a4a) }, // warm rim where dust catches the glow's light
+    },
+    vertexShader: torusVert,
+    fragmentShader: torusFrag,
+    transparent: true,
+    // Unlike every flat shape elsewhere in this file (rings/circles/cones,
+    // which have no self-overlap issue viewed from a fixed angle), a REAL
+    // tube has a front-facing and a back-facing surface that both project
+    // into roughly the same screen area from a near-symmetric view. With
+    // depthTest off (this file's usual pattern), both surfaces draw with no
+    // occlusion between them and interleave in arbitrary triangle order —
+    // confirmed by screenshot: the torus rendered as sparse, thin outline
+    // traces instead of a filled volume. Depth test/write turned back on
+    // JUST for this mesh (a per-material setting, doesn't affect anything
+    // else sharing this canvas) so the near surface correctly occludes the
+    // far one, like any normal opaque-ish 3D object would.
+    depthWrite: true,
+    depthTest: true,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+  });
+  const torus = new THREE.Mesh(new THREE.TorusGeometry(Q_TORUS_OUTER - Q_TUBE_R, Q_TUBE_R, 20, 128), torusMat);
+  // Z is squashed FAR more aggressively than Y — quasarGroup's own uniform
+  // scale (~360x, set in resize()) would otherwise blow the tube's real Z
+  // depth (±0.36 locally) out to roughly ±130 world units, well outside
+  // this canvas's orthographic camera near/far range (camera.position.z=5,
+  // near=-10/far=10 → a visible world-Z window of about [-5, 15]) — most of
+  // the tube was simply being clipped, the other real contributor to the
+  // "thin outline" bug alongside the missing depth test above.
+  torus.scale.set(1, Q_SQUASH, 0.03);
+  quasarGroup.add(torus);
+
+  // A second, larger, softer "outer haze" layer — a bigger, thinner,
+  // fainter torus surrounding the dense one, for the diffuse edge the
+  // reference image shows (the dust mass doesn't end with a hard
+  // silhouette, it trails off into wispy haze). Same shader, different
+  // uniforms/scale — one extra draw call for real added depth.
+  const torusHazeMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+      uDensity: { value: 0.12 },
+      uDust: { value: new THREE.Color(0x584f68) },
+      uDustLit: { value: new THREE.Color(0x8a5a6a) },
+    },
+    vertexShader: torusVert,
+    fragmentShader: torusFrag,
+    transparent: true,
+    depthWrite: true,
+    depthTest: true,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+  });
+  const torusHaze = new THREE.Mesh(
+    new THREE.TorusGeometry(Q_TORUS_OUTER - Q_TUBE_R * 0.6, Q_TUBE_R * 1.35, 14, 96),
+    torusHazeMat
+  );
+  torusHaze.scale.set(1, Q_SQUASH, 0.03);
+  quasarGroup.add(torusHaze);
+
+  // Relativistic jets — wide, flared, wispy blue-white cones (narrow at the
+  // core, flaring outward toward the tip, matching the reference image's
+  // "trumpet" shape — the opposite taper from a collimated beam). Two
+  // layers per direction: a narrow bright inner flare + a wider, softer
+  // outer haze, each pair merged into one mesh (2 draw calls total for
+  // all 4 cones). translate+mirror gets the apex (radius 0) touching the
+  // core and the wide base flaring away, since ConeGeometry's default
+  // apex/base order is the other way around.
+  function buildJetGeometry(height, tipRadius, color, power) {
+    const g = new THREE.ConeGeometry(tipRadius, height, 16, 1, true);
+    g.scale(1, -1, 1); // mirror: apex/base swap sides
+    g.translate(0, height / 2, 0); // apex -> 0 (at the core), base -> height (far, wide)
+    const pos = g.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const yFrac = clamp(pos.getY(i) / height, 0, 1); // 0 at core, 1 at tip
+      const f = Math.pow(1 - yFrac, power);
+      colors[i * 3] = color.r * f;
+      colors[i * 3 + 1] = color.g * f;
+      colors[i * 3 + 2] = color.b * f;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    return g;
+  }
+  const jetInnerColor = new THREE.Color(0xd8ecff); // near-white, faint blue
+  const jetOuterColor = new THREE.Color(0x2f6fd6); // deep blue haze
+  const jetInnerUp = buildJetGeometry(1.5, 0.16, jetInnerColor, 1.6);
+  const jetInnerDown = buildJetGeometry(1.5, 0.16, jetInnerColor, 1.6);
+  jetInnerDown.rotateX(Math.PI);
+  const jetInnerMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+  });
+  const jetsInner = new THREE.Mesh(mergeGeometries([jetInnerUp, jetInnerDown]), jetInnerMat);
+  quasarGroup.add(jetsInner);
+
+  const jetOuterUp = buildJetGeometry(1.85, 0.34, jetOuterColor, 1.1);
+  const jetOuterDown = buildJetGeometry(1.85, 0.34, jetOuterColor, 1.1);
+  jetOuterDown.rotateX(Math.PI);
+  const jetOuterMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+  });
+  const jetsOuter = new THREE.Mesh(mergeGeometries([jetOuterUp, jetOuterDown]), jetOuterMat);
+  quasarGroup.add(jetsOuter);
+
+  // Small bright "knots" along each jet — the shocked-plasma clumps
+  // visible in real jet imagery (e.g. M87's jet), not a smooth gradient
+  // the whole way. Static, merged into one draw call.
+  function buildKnotsGeometry() {
+    // Deliberately small + soft (a first pass at 0.05 radius bloomed into
+    // oversized floating orbs rather than reading as subtle jet texture —
+    // this canvas's UnrealBloomPass amplifies small bright additive points
+    // a lot, the same lesson learned earlier with the notes/clear-color
+    // tint work) — these should read as texture, not as their own objects.
+    const geos = [];
+    const knotColor = new THREE.Color(0xdcecff);
+    [1, -1].forEach((dir) => {
+      [0.3, 0.65, 1.05, 1.5].forEach((yDist, i) => {
+        const r = 0.02 - i * 0.003;
+        const g = new THREE.CircleGeometry(r, 10);
+        g.setAttribute('color', radialFalloffColors(g.attributes.position, r, knotColor, 2.2));
+        g.translate((Math.random() - 0.5) * 0.04, dir * yDist, 0.001);
+        geos.push(g);
+      });
+    });
+    return mergeGeometries(geos);
+  }
+  const knotsMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+    side: THREE.DoubleSide,
+  });
+  const knots = new THREE.Mesh(buildKnotsGeometry(), knotsMat);
+  quasarGroup.add(knots);
+
+  // Hot-spot embers orbiting within the torus band — one InstancedMesh
+  // (one draw call, GPU-instanced), Keplerian-ish angular speed (∝
+  // 1/sqrt(radius), so inner embers visibly lap outer ones) — the same
+  // "real physics over scripted motion" preference already established by
+  // sections/orbits.js's N-body sim. Recolored warm ember-orange (was
+  // gold-white) to match the dusty-torus aesthetic instead of a bright
+  // accretion disk.
+  const Q_HOTSPOT_COUNT = 16;
+  const hotspotGeo = new THREE.CircleGeometry(0.02, 10);
+  hotspotGeo.setAttribute(
+    'color',
+    radialFalloffColors(hotspotGeo.attributes.position, 0.02, new THREE.Color(0xffb266), 1.2)
+  );
+  const hotspotMat = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    toneMapped: false,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: false,
+  });
+  const hotspots = new THREE.InstancedMesh(hotspotGeo, hotspotMat, Q_HOTSPOT_COUNT);
+  quasarGroup.add(hotspots);
+  const hotspotState = Array.from({ length: Q_HOTSPOT_COUNT }, () => ({
+    radius: lerp(Q_TORUS_INNER * 1.3, Q_TORUS_OUTER * 0.95, Math.random()),
+    angle: Math.random() * Math.PI * 2,
+  }));
+  const hsDummy = new THREE.Object3D();
+  const hsColor = new THREE.Color();
+
+  let quasarOpacity = 0;
+
+  // ---- literal space backdrop for About (stars + plasma clouds) ----
+  // The user's explicit ask: the background itself has to read as space —
+  // "the distant stars, plasma clouds etc." — not just the quasar object
+  // floating on a plain gradient. Positioned in full canvas pixel space
+  // (like the main ambient particle system) rather than the quasar's own
+  // unit-radius local space, so it spans the whole viewport, not just the
+  // area right around the quasar. Fades in/out with the same quasarOpacity
+  // as everything else above.
+  const aboutSpaceGroup = new THREE.Group();
+  aboutSpaceGroup.visible = false;
+  scene.add(aboutSpaceGroup);
+
+  // Dense starfield — reuses this file's own particle shader (VERT/FRAG,
+  // defined above for the main ambient field) rather than a new one; the
+  // aSize/aColor/aAlpha/aRot interface is generic, not tied to the ambient
+  // simulation's own logic, so a second, much simpler THREE.Points sharing
+  // it costs nothing extra to build.
+  const STAR_COUNT = 320;
+  const starGeo = new THREE.BufferGeometry();
+  const starPositions = new Float32Array(STAR_COUNT * 3);
+  const starSizes = new Float32Array(STAR_COUNT);
+  const starColors = new Float32Array(STAR_COUNT * 3);
+  const starAlphas = new Float32Array(STAR_COUNT);
+  const starRots = new Float32Array(STAR_COUNT);
+  const starState = Array.from({ length: STAR_COUNT }, () => ({
+    xf: Math.random(),
+    yf: Math.random(),
+    size: 0.9 + Math.random() * 1.8,
+    seed: Math.random() * 1000,
+    twSpeed: 0.4 + Math.random() * 1.1,
+    blue: Math.random() < 0.3, // a minority read cooler-white, most warm-white
+  }));
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  starGeo.setAttribute('aSize', new THREE.BufferAttribute(starSizes, 1));
+  starGeo.setAttribute('aColor', new THREE.BufferAttribute(starColors, 3));
+  starGeo.setAttribute('aAlpha', new THREE.BufferAttribute(starAlphas, 1));
+  starGeo.setAttribute('aRot', new THREE.BufferAttribute(starRots, 1));
+  const starMat = new THREE.ShaderMaterial({
+    vertexShader: VERT,
+    fragmentShader: FRAG,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const starPoints = new THREE.Points(starGeo, starMat);
+  aboutSpaceGroup.add(starPoints);
+
+  // Plasma clouds — a handful of large, soft, slowly-drifting additive
+  // blobs scattered across the viewport, blue/cyan (deliberately distinct
+  // from the quasar's own warm palette, echoing the reference image's cool
+  // nebula haze around a warm core). Few enough (6) that separate meshes
+  // (not instanced) are the simpler, still-cheap choice.
+  const PLASMA_COUNT = 6;
+  const plasmaColors = [0x3a6fb8, 0x4a8fc9, 0x2f5a99, 0x5aa0d6, 0x3d7ab0, 0x2a4f8a];
+  const plasmaState = Array.from({ length: PLASMA_COUNT }, (_, i) => ({
+    xf: 0.08 + Math.random() * 0.84,
+    yf: 0.08 + Math.random() * 0.84,
+    r: 90 + Math.random() * 140,
+    seed: Math.random() * 1000,
+    driftSpeed: 0.00002 + Math.random() * 0.00003,
+    color: plasmaColors[i % plasmaColors.length],
+  }));
+  const plasmaClouds = plasmaState.map((p) => {
+    const g = new THREE.CircleGeometry(1, 24);
+    g.setAttribute('color', radialFalloffColors(g.attributes.position, 1, new THREE.Color(p.color), 1.8));
+    const mat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0,
+      toneMapped: false,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const mesh = new THREE.Mesh(g, mat);
+    aboutSpaceGroup.add(mesh);
+    return { mesh, mat };
+  });
+
   // ---- floating 3D notes (recital mood accent) ----
   // A secondary accent while a song plays — the background clear-color
   // wash below (see BASE_CLEAR/tintBlend) is the main effect; this is
@@ -427,6 +856,20 @@ export function createMotionField(canvas, options = {}) {
       sigil.scale.setScalar(r);
       sigil.position.set(W * 0.5, H * 0.4, 0);
     }
+
+    // Upper-right of the About section, clear of the key-area card grid
+    // below and the header text's left-aligned column — see the About CSS
+    // header note for how this pairs with the section's own background.
+    const qr = Math.min(W, H) * 0.4;
+    quasarGroup.scale.setScalar(qr);
+    quasarGroup.position.set(W * 0.74, H * 0.34, 0);
+
+    // Plasma cloud radii scale with viewport size (like the quasar itself)
+    // rather than staying a fixed pixel size regardless of screen.
+    const plasmaScale = Math.min(W, H) * 0.9;
+    plasmaClouds.forEach(({ mesh }, i) => {
+      mesh.scale.setScalar((plasmaState[i].r / 220) * plasmaScale * 0.55);
+    });
   }
 
   let t = 0;
@@ -451,20 +894,30 @@ export function createMotionField(canvas, options = {}) {
       darkTintColor.copy(tint.color).multiplyScalar(0.28); // see the gotcha note above
     }
 
+    // About is exempt from the song-mood wash — the user's explicit ask:
+    // About's background is space (and now the quasar) "even when playing
+    // a song," full stop, unlike every other section where the global wash
+    // carrying through is deliberate (confirmed separately, see the
+    // recital-mood-active notes elsewhere in this file). Gates the clear-
+    // color wash, the floating-notes accent, and the ambient particles'
+    // color override below — About keeps its own violet/rose palette and
+    // the quasar's own colors regardless of recital playback state.
+    const spaceExempt = sceneName === 'about';
+
     // Background clear-color wash — the main per-song reaction. Eases
     // toward a strong (mostly-replaced, not subtle) mix with the *darkened*
     // mood color while tint is active, and back to the base dusk tone when
     // it clears. Blending toward darkTintColor (not the vivid tint.color
     // used for particles/notes) is what keeps this from blowing out — see
     // the gotcha note above.
-    tintBlend = lerp(tintBlend, tint ? 0.9 : 0, k);
+    tintBlend = lerp(tintBlend, tint && !spaceExempt ? 0.9 : 0, k);
     liveClearColor.copy(BASE_CLEAR).lerp(darkTintColor, tintBlend);
     renderer.setClearColor(liveClearColor, 1);
 
     // Floating 3D notes — secondary accent, faded in step with the same
     // tint state (see file header note on why these are real Object3D
     // meshes and not DOM elements).
-    const notesTarget = tint ? 0.6 : 0;
+    const notesTarget = tint && !spaceExempt ? 0.6 : 0;
     notesOpacity = lerp(notesOpacity, notesTarget, k);
     notesMat.opacity = notesOpacity;
     if (notesOpacity > 0.004) {
@@ -566,7 +1019,7 @@ export function createMotionField(canvas, options = {}) {
         colors[i3] = p.overrideColor.r;
         colors[i3 + 1] = p.overrideColor.g;
         colors[i3 + 2] = p.overrideColor.b;
-      } else if (tint) {
+      } else if (tint && !spaceExempt) {
         colors[i3] = tint.color.r;
         colors[i3 + 1] = tint.color.g;
         colors[i3 + 2] = tint.color.b;
@@ -594,6 +1047,81 @@ export function createMotionField(canvas, options = {}) {
       const targetOp = wantVisible ? 0.55 : 0;
       mats.forEach((m) => (m.opacity = lerp(m.opacity, targetOp, k)));
       if (!REDUCED) sigil.rotation.z += dt * 0.00012;
+    }
+
+    // Quasar (About centerpiece) — same fade-by-scene pattern as the sigil.
+    const wantQuasar = sceneName === 'about';
+    quasarOpacity = lerp(quasarOpacity, wantQuasar ? 1 : 0, k);
+    quasarGroup.visible = wantQuasar || quasarOpacity > 0.003;
+    aboutSpaceGroup.visible = quasarGroup.visible;
+    if (quasarGroup.visible) {
+      glowMat.opacity = quasarOpacity;
+      torusMat.uniforms.uOpacity.value = quasarOpacity;
+      torusHazeMat.uniforms.uOpacity.value = quasarOpacity;
+      jetInnerMat.opacity = quasarOpacity * 0.85;
+      jetOuterMat.opacity = quasarOpacity * 0.5;
+      knotsMat.opacity = quasarOpacity * 0.55;
+      hotspotMat.opacity = quasarOpacity;
+      if (!REDUCED) {
+        torusMat.uniforms.uTime.value = t;
+        torusHazeMat.uniforms.uTime.value = t;
+        torus.rotation.z += dt * 0.00003;
+        torusHaze.rotation.z -= dt * 0.00002; // drifts the opposite way — real depth cue, the outer haze doesn't spin in lockstep with the dense core
+        hotspotState.forEach((h, i) => {
+          // Keplerian-ish: angular speed falls off with radius (∝ 1/sqrt(r))
+          // — inner embers visibly lap outer ones, not a uniform spin.
+          h.angle += (0.9 / Math.sqrt(h.radius)) * dt * 0.001;
+          hsDummy.position.set(Math.cos(h.angle) * h.radius, Math.sin(h.angle) * h.radius * Q_SQUASH, 0.001);
+          hsDummy.updateMatrix();
+          hotspots.setMatrixAt(i, hsDummy.matrix);
+          // A touch of the same "moving material" beaming idea, toned down
+          // and warmed for embers rather than a bright accretion disk: the
+          // approaching side reads a little brighter, the receding side a
+          // little dimmer.
+          const doppler = Math.cos(h.angle);
+          const beam = 1 + doppler * 0.35;
+          hsColor.setRGB(beam, beam * 0.82, beam * 0.55);
+          hotspots.setColorAt(i, hsColor);
+        });
+        hotspots.instanceMatrix.needsUpdate = true;
+        if (hotspots.instanceColor) hotspots.instanceColor.needsUpdate = true;
+      }
+
+      // Plasma clouds — slow independent drift + a slow opacity pulse per
+      // cloud so the whole backdrop feels alive rather than a static poster.
+      plasmaClouds.forEach(({ mesh, mat }, i) => {
+        const p = plasmaState[i];
+        mat.opacity = quasarOpacity * (0.32 + 0.12 * Math.sin(t * 0.3 + p.seed));
+        if (!REDUCED) {
+          const dx = Math.sin(t * 0.15 + p.seed) * 40;
+          const dy = Math.cos(t * 0.12 + p.seed * 1.3) * 30;
+          mesh.position.set(p.xf * W + dx, p.yf * H + dy, 0);
+        } else {
+          mesh.position.set(p.xf * W, p.yf * H, 0);
+        }
+      });
+
+      // Starfield twinkle — per-star size/alpha oscillation, cheap at this
+      // count (320, well under the ambient field's own 760-particle budget
+      // already running every frame regardless).
+      for (let i = 0; i < STAR_COUNT; i++) {
+        const s = starState[i];
+        const i3 = i * 3;
+        starPositions[i3] = s.xf * W;
+        starPositions[i3 + 1] = s.yf * H;
+        starPositions[i3 + 2] = 0;
+        const tw = REDUCED ? 1 : 0.55 + 0.45 * Math.sin(t * s.twSpeed + s.seed);
+        starSizes[i] = s.size * tw;
+        starAlphas[i] = quasarOpacity * (0.4 + 0.6 * tw);
+        starColors[i3] = 1;
+        starColors[i3 + 1] = s.blue ? 0.94 : 1;
+        starColors[i3 + 2] = s.blue ? 1 : 0.92;
+        starRots[i] = 0;
+      }
+      starGeo.attributes.position.needsUpdate = true;
+      starGeo.attributes.aSize.needsUpdate = true;
+      starGeo.attributes.aAlpha.needsUpdate = true;
+      starGeo.attributes.aColor.needsUpdate = true;
     }
   }
 
@@ -691,6 +1219,26 @@ export function createMotionField(canvas, options = {}) {
       ro.disconnect();
       geometry?.dispose();
       points?.material.dispose();
+      glow.geometry.dispose();
+      glowMat.dispose();
+      torus.geometry.dispose();
+      torusMat.dispose();
+      torusHaze.geometry.dispose();
+      torusHazeMat.dispose();
+      jetsInner.geometry.dispose();
+      jetInnerMat.dispose();
+      jetsOuter.geometry.dispose();
+      jetOuterMat.dispose();
+      knots.geometry.dispose();
+      knotsMat.dispose();
+      hotspotGeo.dispose();
+      hotspotMat.dispose();
+      starGeo.dispose();
+      starMat.dispose();
+      plasmaClouds.forEach(({ mesh, mat }) => {
+        mesh.geometry.dispose();
+        mat.dispose();
+      });
       composer.dispose();
       renderer.dispose();
     },
